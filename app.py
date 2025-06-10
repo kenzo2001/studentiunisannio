@@ -1,13 +1,22 @@
 import os
-from flask import Flask, jsonify, request, send_from_directory # Importa send_from_directory
+from flask import Flask, jsonify, request, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 from datetime import datetime
-from flask_cors import CORS
+from flask_cors import CORS 
 
-app = Flask(__name__, static_folder='.', static_url_path='/') # Modifica qui: configura static_folder e static_url_path
+# Inizializza l'app Flask
+app = Flask(__name__, static_folder='.', static_url_path='/') 
 
-db = SQLAlchemy(app)
+# --- Configurazione del Database ---
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///unisannio_appunti.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False 
+
+# Inizializza SQLAlchemy SENZA passare 'app' al costruttore
+db = SQLAlchemy() # <--- MODIFICA QUI
+
+# Inizializza l'estensione SQLAlchemy con l'app dopo la configurazione
+db.init_app(app) # <--- AGGIUNGI QUESTA RIGA
 
 CORS(app) 
 
@@ -21,16 +30,16 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# --- Definizione dei Modelli del Database ---
-# ... (le tue classi Department, DegreeProgram, Course, Note rimangono invariate) ...
+# --- Definizione dei Modelli del Database (rimane invariata) ---
 class Department(db.Model):
+    # ... (il resto della classe)
     __tablename__ = 'departments' 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), unique=True, nullable=False)
     degree_programs = db.relationship('DegreeProgram', backref='department', lazy=True)
     def to_dict(self):
         return {"id": self.id, "name": self.name}
-
+# ... (tutte le altre classi DegreeProgram, Course, Note) ...
 class DegreeProgram(db.Model):
     __tablename__ = 'degree_programs'
     id = db.Column(db.Integer, primary_key=True)
@@ -76,30 +85,18 @@ class Note(db.Model):
         }
 
 
-# --- NUOVE ROTTE PER SERVIRE I FILE DEL FRONTEEND ---
-
-# Rotta per la homepage (index.html)
+# --- Rotte Frontend (rimangono invariate) ---
 @app.route('/')
 def serve_index():
     return send_from_directory('.', 'index.html')
 
-# Rotta per servire tutti gli altri file HTML
-# Questo catturerà richieste come /ding.html, /dst.html, ecc.
 @app.route('/<path:filename>')
 def serve_html_files(filename):
-    # Verifichiamo se il file richiesto è un file HTML
     if filename.endswith('.html'):
         return send_from_directory('.', filename)
-    # Esempio: se sono richieste risorse statiche come style.css o script.js
-    # Grazie alla configurazione static_folder/static_url_path all'inizio,
-    # questi file vengono serviti automaticamente dalla radice.
-    # Quindi questa rotta non è strettamente necessaria per i file CSS/JS se sono nella radice,
-    # ma è utile per estendere o per altri tipi di file.
     return send_from_directory('.', filename)
 
-
-# --- Rotte API (come nel passo precedente, non cambiano) ---
-
+# --- Rotte API (rimangono invariate) ---
 @app.route('/api/departments', methods=['GET'])
 def get_departments():
     departments = Department.query.all()
@@ -191,6 +188,7 @@ def download_note(note_id):
 # --- Esecuzione dell'App ---
 if __name__ == '__main__':
     with app.app_context():
+        # Crea le tabelle nel database se non esistono (si occupa di questo Flask-SQLAlchemy)
         db.create_all() 
         print("Database e tabelle create (o già esistenti).")
 
