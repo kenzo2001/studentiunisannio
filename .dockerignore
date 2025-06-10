@@ -1,28 +1,33 @@
-# flyctl launch added from .gitignore
-# Python virtual environment
-**\venv
-**\.venv
-**\env
-**\.env
+# File e directory da ignorare nel contesto di build di Docker e nel repository Git
 
-# Python cache
-**\__pycache__
-**\*.pyc
-**\*.egg-info
-**\.pytest_cache
+# Ambiente virtuale Python
+venv/
+.venv/
+env/
+.env/
 
-# Database SQLite locale
-**\*.db
-**\*.sqlite
-**\*.sqlite3
+# File di cache di Python
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
 
-# Cartella di upload (i file caricati dagli utenti non vanno versionati)
-**\uploads
+# Database SQLite locale (non vanno nel container persistente)
+*.db
+*.sqlite
+*.sqlite3
 
-# IDE files
-**\.vscode
-**\.idea
+# Cartella di upload (i file caricati dagli utenti non vanno nel repository Git
+# e non dovrebbero essere copiati nel container in fase di build)
+uploads/
 
-# Flask-specific files
-**\instance
+# File degli IDE
+.vscode/
+.idea/
+
+# File specifici di Flask
+instance/
+
+# File di configurazione di Fly.io che a volte non devono essere nel contesto di build
 fly.toml
+.fly/
