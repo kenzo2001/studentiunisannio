@@ -1,21 +1,14 @@
 import os
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory # Importa send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 from datetime import datetime
-from flask_cors import CORS # Importa Flask-CORS per gestire le richieste da origini diverse
+from flask_cors import CORS
 
-app = Flask(__name__)
-
-# --- Configurazione del Database ---
-# Per SQLite: il database sarà un file chiamato 'unisannio_appunti.db'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///unisannio_appunti.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False 
+app = Flask(__name__, static_folder='.', static_url_path='/') # Modifica qui: configura static_folder e static_url_path
 
 db = SQLAlchemy(app)
 
-# --- Configurazione CORS ---
-# Cruciale per permettere al tuo frontend di fare richieste al server Flask.
 CORS(app) 
 
 # --- Configurazione per il caricamento dei PDF ---
@@ -29,14 +22,12 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # --- Definizione dei Modelli del Database ---
-
+# ... (le tue classi Department, DegreeProgram, Course, Note rimangono invariate) ...
 class Department(db.Model):
     __tablename__ = 'departments' 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), unique=True, nullable=False)
-    
     degree_programs = db.relationship('DegreeProgram', backref='department', lazy=True)
-
     def to_dict(self):
         return {"id": self.id, "name": self.name}
 
@@ -45,9 +36,7 @@ class DegreeProgram(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
     department_id = db.Column(db.Integer, db.ForeignKey('departments.id'), nullable=False)
-    
     courses = db.relationship('Course', backref='degree_program', lazy=True)
-
     def to_dict(self):
         return {"id": self.id, "name": self.name, "department_id": self.department_id}
 
@@ -57,9 +46,7 @@ class Course(db.Model):
     name = db.Column(db.String(120), nullable=False)
     year = db.Column(db.Integer, nullable=False) 
     degree_program_id = db.Column(db.Integer, db.ForeignKey('degree_programs.id'), nullable=False)
-    
     notes = db.relationship('Note', backref='course', lazy=True)
-
     def to_dict(self):
         return {
             "id": self.id, 
@@ -77,7 +64,6 @@ class Note(db.Model):
     upload_date = db.Column(db.DateTime, default=datetime.utcnow)
     course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
     uploader_name = db.Column(db.String(80), nullable=True)
-
     def to_dict(self):
         return {
             "id": self.id,
@@ -89,7 +75,30 @@ class Note(db.Model):
             "uploader_name": self.uploader_name
         }
 
-# --- Rotte API ---
+
+# --- NUOVE ROTTE PER SERVIRE I FILE DEL FRONTEEND ---
+
+# Rotta per la homepage (index.html)
+@app.route('/')
+def serve_index():
+    return send_from_directory('.', 'index.html')
+
+# Rotta per servire tutti gli altri file HTML
+# Questo catturerà richieste come /ding.html, /dst.html, ecc.
+@app.route('/<path:filename>')
+def serve_html_files(filename):
+    # Verifichiamo se il file richiesto è un file HTML
+    if filename.endswith('.html'):
+        return send_from_directory('.', filename)
+    # Esempio: se sono richieste risorse statiche come style.css o script.js
+    # Grazie alla configurazione static_folder/static_url_path all'inizio,
+    # questi file vengono serviti automaticamente dalla radice.
+    # Quindi questa rotta non è strettamente necessaria per i file CSS/JS se sono nella radice,
+    # ma è utile per estendere o per altri tipi di file.
+    return send_from_directory('.', filename)
+
+
+# --- Rotte API (come nel passo precedente, non cambiano) ---
 
 @app.route('/api/departments', methods=['GET'])
 def get_departments():
@@ -110,9 +119,8 @@ def get_courses_by_degree_and_year(degree_program_id, year):
         return jsonify({"message": "Nessun corso trovato per questo corso di laurea e anno"}), 404
     return jsonify([c.to_dict() for c in courses])
 
-# CORREZIONE QUI: Aggiunto 'course_id' come argomento della funzione
 @app.route('/api/courses/<int:course_id>/notes', methods=['GET'])
-def get_notes_by_course(course_id): # <-- Aggiungi course_id qui!
+def get_notes_by_course(course_id):
     notes = Note.query.filter_by(course_id=course_id).all()
     if not notes:
         return jsonify({"message": "Nessun appunto trovato per questo esame"}), 404
