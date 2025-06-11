@@ -6,7 +6,7 @@
     <title>UNISANNIO APPUNTI - Carica Appunto</title>
     <link rel="stylesheet" href="style.css"> 
     <style>
-        /* Stili specifici per la pagina di upload */
+        /* ... (tutto il CSS interno rimane invariato) ... */
         .upload-form-container {
             max-width: 600px;
             margin: 40px auto;
@@ -15,94 +15,37 @@
             border: 1px solid var(--bordo-colore);
             border-radius: var(--border-radius);
             box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-            text-align: left; /* Allinea il testo all'interno del form a sinistra */
+            text-align: left;
         }
-
         .upload-form-container h2 {
             text-align: center;
             color: var(--colore-testo);
             margin-bottom: 25px;
             font-size: 1.8em;
         }
-
-        .form-group {
-            margin-bottom: 20px;
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--colore-testo); }
+        .form-group input[type="text"], .form-group input[type="file"], .form-group select, .form-group textarea {
+            width: calc(100% - 20px);
+            padding: 10px; border: 1px solid var(--bordo-colore); border-radius: var(--border-radius);
+            font-family: var(--font-principale); font-size: 1em;
         }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: var(--colore-testo);
-        }
-
-        .form-group input[type="text"],
-        .form-group input[type="file"],
-        .form-group select,
-        .form-group textarea {
-            width: calc(100% - 20px); /* Regola la larghezza per il padding */
-            padding: 10px;
-            border: 1px solid var(--bordo-colore);
-            border-radius: var(--border-radius);
-            font-family: var(--font-principale);
-            font-size: 1em;
-        }
-        
-        .form-group textarea {
-            resize: vertical; /* Permette all'utente di ridimensionare verticalmente */
-            min-height: 80px;
-        }
-
-        .form-group input[type="file"] {
-            padding: 5px; /* Meno padding per l'input file */
-        }
-
+        .form-group textarea { resize: vertical; min-height: 80px; }
+        .form-group input[type="file"] { padding: 5px; }
         .form-group select {
-            appearance: none; /* Rimuove lo stile predefinito della freccia */
-            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23000000%22%20d%3D%22M287%2C197.962L146.2%2C57.162L5.4%2C197.962h281.6z%22%2F%3E%3C%2Fsvg%3E'); /* Freccia personalizzata */
-            background-repeat: no-repeat;
-            background-position: right 10px center;
-            background-size: 12px;
-            padding-right: 30px;
+            appearance: none;
+            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23000000%22%20d%3D%22M287%2C197.962L146.2%2C57.162L5.4%2C197.962h281.6z%22%2F%3E%3C%2Fsvg%3E');
+            background-repeat: no-repeat; background-position: right 10px center; background-size: 12px; padding-right: 30px;
         }
-
         .submit-btn {
-            display: block;
-            width: 100%;
-            padding: 12px;
-            background-color: var(--colore-primario);
-            color: var(--colore-bianco);
-            border: none;
-            border-radius: var(--border-radius);
-            font-size: 1.1em;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
+            display: block; width: 100%; padding: 12px; background-color: var(--colore-primario);
+            color: var(--colore-bianco); border: none; border-radius: var(--border-radius);
+            font-size: 1.1em; font-weight: bold; cursor: pointer; transition: background-color 0.3s ease;
         }
-
-        .submit-btn:hover {
-            background-color: var(--colore-primario-hover);
-        }
-
-        #upload-message {
-            margin-top: 20px;
-            padding: 10px;
-            border-radius: var(--border-radius);
-            font-weight: bold;
-            text-align: center;
-        }
-
-        #upload-message.success {
-            background-color: #d4edda;
-            color: #155724;
-            border-color: #c3e6cb;
-        }
-
-        #upload-message.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border-color: #f5c6cb;
-        }
+        .submit-btn:hover { background-color: var(--colore-primario-hover); }
+        #upload-message { margin-top: 20px; padding: 10px; border-radius: var(--border-radius); font-weight: bold; text-align: center; }
+        #upload-message.success { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
+        #upload-message.error { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
     </style>
 </head>
 <body>
@@ -176,165 +119,5 @@
         <p>Powered by cusas engegnering</p>
     </footer>
 
-    <script src="script.js"></script>
-    <script>
-        // Questo script sarà specifico per la pagina upload_note.html
-        document.addEventListener('DOMContentLoaded', function() {
-            const departmentSelect = document.getElementById('departmentSelect');
-            const degreeProgramSelect = document.getElementById('degreeProgramSelect');
-            const courseSelect = document.getElementById('courseSelect');
-            const uploadNoteForm = document.getElementById('uploadNoteForm');
-            const uploadMessage = document.getElementById('upload-message');
-
-            const API_BASE_URL = 'http://127.0.0.1:5000/api';
-
-            // Funzione per caricare i dipartimenti
-            async function loadDepartments() {
-                try {
-                    const response = await fetch(`${API_BASE_URL}/departments`);
-                    const departments = await response.json();
-                    
-                    departmentSelect.innerHTML = '<option value="">Seleziona Dipartimento</option>';
-                    departments.forEach(dept => {
-                        const option = document.createElement('option');
-                        option.value = dept.id;
-                        option.textContent = dept.name;
-                        departmentSelect.appendChild(option);
-                    });
-                } catch (error) {
-                    console.error('Errore nel caricamento dei dipartimenti:', error);
-                    uploadMessage.textContent = 'Errore nel caricamento dei dipartimenti.';
-                    uploadMessage.className = 'error';
-                }
-            }
-
-            // Funzione per caricare i corsi di laurea in base al dipartimento selezionato
-            async function loadDegreePrograms(departmentId) {
-                degreeProgramSelect.innerHTML = '<option value="">Seleziona Corso di Laurea</option>';
-                degreeProgramSelect.disabled = true;
-                courseSelect.innerHTML = '<option value="">Seleziona Esame/Materia</option>';
-                courseSelect.disabled = true;
-
-                if (!departmentId) return;
-
-                try {
-                    const response = await fetch(`${API_BASE_URL}/departments/${departmentId}/degree_programs`);
-                    const degreePrograms = await response.json();
-                    
-                    degreePrograms.forEach(dp => {
-                        const option = document.createElement('option');
-                        option.value = dp.id;
-                        option.textContent = dp.name;
-                        degreeProgramSelect.appendChild(option);
-                    });
-                    degreeProgramSelect.disabled = false;
-                } catch (error) {
-                    console.error('Errore nel caricamento dei corsi di laurea:', error);
-                    uploadMessage.textContent = 'Errore nel caricamento dei corsi di laurea.';
-                    uploadMessage.className = 'error';
-                }
-            }
-
-            // Funzione per caricare gli esami in base al corso di laurea selezionato
-            async function loadCourses(degreeProgramId) {
-                courseSelect.innerHTML = '<option value="">Seleziona Esame/Materia</option>';
-                courseSelect.disabled = true;
-
-                if (!degreeProgramId) return;
-
-                try {
-                    // Nota: Questa API richiede anche l'anno.
-                    // Per semplificare in questo form, potremmo volere una API che dia tutti i corsi di un degree_program
-                    // indipendentemente dall'anno, oppure chiedere anche l'anno nel form.
-                    // Per ora, useremo 1, 2, 3 e concateneremo i risultati.
-                    let allCourses = [];
-                    for (let year = 1; year <= 3; year++) { // Itera sugli anni 1, 2, 3
-                        const response = await fetch(`${API_BASE_URL}/degree_programs/${degreeProgramId}/courses/${year}`);
-                        if (response.ok) {
-                            const coursesByYear = await response.json();
-                            allCourses = allCourses.concat(coursesByYear);
-                        }
-                    }
-                    
-                    allCourses.sort((a,b) => a.name.localeCompare(b.name)); // Ordina alfabeticamente
-                    allCourses.forEach(course => {
-                        const option = document.createElement('option');
-                        option.value = course.id;
-                        option.textContent = `${course.name} (${course.year}° Anno)`;
-                        courseSelect.appendChild(option);
-                    });
-                    courseSelect.disabled = false;
-                } catch (error) {
-                    console.error('Errore nel caricamento degli esami:', error);
-                    uploadMessage.textContent = 'Errore nel caricamento degli esami.';
-                    uploadMessage.className = 'error';
-                }
-            }
-
-            // Gestione eventi Change
-            departmentSelect.addEventListener('change', (e) => loadDegreePrograms(e.target.value));
-            degreeProgramSelect.addEventListener('change', (e) => loadCourses(e.target.value));
-
-            // Gestione del submit del form
-            uploadNoteForm.addEventListener('submit', async function(e) {
-                e.preventDefault(); // Previeni il ricaricamento della pagina
-                uploadMessage.textContent = 'Caricamento in corso...';
-                uploadMessage.className = '';
-
-                const formData = new FormData(this); // Crea un oggetto FormData dal form
-
-                try {
-                    const response = await fetch(`${API_BASE_URL}/upload_note`, {
-                        method: 'POST',
-                        body: formData // FormData imposta automaticamente l'header Content-Type a multipart/form-data
-                    });
-
-                    const result = await response.json();
-
-                    if (response.ok) {
-                        uploadMessage.textContent = 'Appunto caricato con successo!';
-                        uploadMessage.className = 'success';
-                        uploadNoteForm.reset(); // Resetta il form
-                        // Resetta anche le dropdown dipendenti
-                        degreeProgramSelect.innerHTML = '<option value="">Seleziona Corso di Laurea</option>';
-                        degreeProgramSelect.disabled = true;
-                        courseSelect.innerHTML = '<option value="">Seleziona Esame/Materia</option>';
-                        courseSelect.disabled = true;
-                    } else {
-                        uploadMessage.textContent = `Errore: ${result.error || 'Qualcosa è andato storto'}`;
-                        uploadMessage.className = 'error';
-                    }
-                } catch (error) {
-                    console.error('Errore durante l\'upload:', error);
-                    uploadMessage.textContent = `Errore di rete o server non raggiungibile: ${error.message}`;
-                    uploadMessage.className = 'error';
-                }
-            });
-
-            // Carica i dipartimenti all'apertura della pagina
-            loadDepartments();
-
-            // Inizializza la navigazione principale e l'header per questa pagina
-            // (Assicurati che questa parte non sia duplicata se hai già un script.js globale)
-            const currentPage = window.location.pathname.split('/').pop();
-            const navLinks = document.querySelectorAll('.navbar a');
-            const header = document.querySelector('header'); 
-            
-            navLinks.forEach(link => {
-                link.classList.remove('active-home', 'active-ding', 'active-dst', 'active-demm', 'active-contatti');
-            });
-            header.classList.remove('header-home', 'header-ding', 'header-dst', 'header-demm', 'header-contatti', 'header-ingegneria');
-
-            // Poiché upload_note.html non è un tab diretto, puoi decidere il colore dell'header
-            // Ad esempio, potresti volerlo rosso fisso come le pagine di ingegneria,
-            // oppure un colore neutro, o il colore del tab "Home".
-            // Per ora lo imposto a rosso fisso (DING) come per le pagine di ingegneria.
-            header.classList.add('header-ingegneria'); // O 'header-home' se preferisci
-            
-            // Attiva il tab "DING" nella navbar, se vuoi che sia evidenziato quando sei in upload.
-            // Oppure attiva "Home"
-            document.getElementById('nav-ding').classList.add('active-ding'); 
-        });
-    </script>
-</body>
+    <script src="script.js"></script> </body>
 </html>
