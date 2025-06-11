@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const currentPage = window.location.pathname.split('/').pop();
     const navLinks = document.querySelectorAll('.navbar a');
     const header = document.querySelector('header'); 
-    const API_BASE_URL = 'http://127.0.0.1:5000/api'; // Definizione dell'URL base dell'API
+    const API_BASE_URL = 'https://studentiunisannio.it/api'; // Definizione dell'URL base dell'API
 
     // Mappa i nomi delle specializzazioni ai loro ID nel database
     const degreeProgramIds = {
