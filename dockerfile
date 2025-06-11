@@ -8,11 +8,15 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia tutto il resto del codice sorgente nella directory di lavoro
+# Copia tutto il resto del codice sorgente nella directory di lavoro (include app.py e init_db.py)
 COPY . .
 
 # Crea la directory 'uploads' per i file caricati (Fly.io gestirà la persistenza con volumi)
 RUN mkdir -p uploads
+
+# NUOVA RIGA: Esegui lo script di inizializzazione del DB durante la build
+# Questo script creerà le tabelle e popolerà il database SQLite.
+RUN python init_db.py
 
 # Espone la porta su cui l'applicazione Flask ascolterà
 EXPOSE 8080

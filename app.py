@@ -13,11 +13,11 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///unisannio_appunti.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False 
 
 # Inizializza SQLAlchemy SENZA passare 'app' al costruttore
-db = SQLAlchemy() # <--- MODIFICA QUI
+db = SQLAlchemy() 
+# Collega l'estensione SQLAlchemy all'app dopo la configurazione
+db.init_app(app) 
 
-# Inizializza l'estensione SQLAlchemy con l'app dopo la configurazione
-db.init_app(app) # <--- AGGIUNGI QUESTA RIGA
-
+# Configurazione CORS per permettere richieste dal frontend
 CORS(app) 
 
 # --- Configurazione per il caricamento dei PDF ---
@@ -30,16 +30,17 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# --- Definizione dei Modelli del Database (rimane invariata) ---
+# --- Definizione dei Modelli del Database ---
+# Queste classi definiscono le tabelle del tuo database.
+
 class Department(db.Model):
-    # ... (il resto della classe)
     __tablename__ = 'departments' 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), unique=True, nullable=False)
     degree_programs = db.relationship('DegreeProgram', backref='department', lazy=True)
     def to_dict(self):
         return {"id": self.id, "name": self.name}
-# ... (tutte le altre classi DegreeProgram, Course, Note) ...
+
 class DegreeProgram(db.Model):
     __tablename__ = 'degree_programs'
     id = db.Column(db.Integer, primary_key=True)
@@ -85,18 +86,21 @@ class Note(db.Model):
         }
 
 
-# --- Rotte Frontend (rimangono invariate) ---
+# --- Rotte per Servire i File del Frontend (HTML, CSS, JS) ---
+
 @app.route('/')
 def serve_index():
     return send_from_directory('.', 'index.html')
 
 @app.route('/<path:filename>')
-def serve_html_files(filename):
-    if filename.endswith('.html'):
-        return send_from_directory('.', filename)
+def serve_static_files(filename):
+    # Flask di default serve i file statici dalla cartella specificata in static_folder.
+    # Tuttavia, questa rotta è utile per catturare file specifici o .html non radice.
     return send_from_directory('.', filename)
 
-# --- Rotte API (rimangono invariate) ---
+
+# --- Rotte API (come nel passo precedente, non cambiano) ---
+
 @app.route('/api/departments', methods=['GET'])
 def get_departments():
     departments = Department.query.all()
@@ -184,51 +188,6 @@ def download_note(note_id):
 
     return send_from_directory(directory=directory, path=filename, as_attachment=True)
 
-
-# --- Esecuzione dell'App ---
-if __name__ == '__main__':
-    with app.app_context():
-        # Crea le tabelle nel database se non esistono (si occupa di questo Flask-SQLAlchemy)
-        db.create_all() 
-        print("Database e tabelle create (o già esistenti).")
-
-        # --- Dati di esempio (solo per la prima esecuzione) ---
-        if not Department.query.first(): 
-            print("Popolando il database con dati di esempio...")
-
-            ding = Department(name='DING')
-            dst = Department(name='DST')
-            demm = Department(name='DEMM')
-            db.session.add_all([ding, dst, demm])
-            db.session.commit()
-
-            ing_energetica = DegreeProgram(name='Ingegneria Energetica', department=ding)
-            ing_civile = DegreeProgram(name='Ingegneria Civile', department=ding)
-            ing_informatica = DegreeProgram(name='Ingegneria Informatica', department=ding)
-            ing_biomedica = DegreeProgram(name='Ingegneria Biomedica', department=ding)
-            db.session.add_all([ing_energetica, ing_civile, ing_informatica, ing_biomedica])
-            db.session.commit()
-
-            scienze_biologiche = DegreeProgram(name='Scienze Biologiche', department=dst)
-            chimica = DegreeProgram(name='Chimica', department=dst)
-            db.session.add_all([scienze_biologiche, chimica])
-            db.session.commit()
-
-            economia_aziendale = DegreeProgram(name='Economia Aziendale', department=demm)
-            management = DegreeProgram(name='Management', department=demm)
-            db.session.add_all([economia_aziendale, management])
-            db.session.commit()
-
-            db.session.add_all([
-                Course(name='Analisi Matematica I', year=1, degree_program=ing_energetica), Course(name='Fisica Generale I', year=1, degree_program=ing_energetica), Course(name='Geometria e Algebra Lineare', year=1, degree_program=ing_energetica), Course(name='Chimica', year=1, degree_program=ing_energetica), Course(name='Informatica', year=1, degree_program=ing_energetica), Course(name='Disegno Tecnico Industriale', year=1, degree_program=ing_energetica), Course(name='Analisi Matematica II', year=2, degree_program=ing_energetica), Course(name='Fisica Generale II', year=2, degree_program=ing_energetica), Course(name='Meccanica Razionale', year=2, degree_program=ing_energetica), Course(name='Termodinamica Applicata', year=2, degree_program=ing_energetica), Course(name='Fondamenti di Elettrotecnica', year=2, degree_program=ing_energetica), Course(name='Scienza delle Costruzioni', year=2, degree_program=ing_energetica), Course(name='Macchine a Fluido', year=3, degree_program=ing_energetica), Course(name='Impianti Termotecnici', year=3, degree_program=ing_energetica), Course(name='Economia ed Estimo Civile', year=3, degree_program=ing_energetica), Course(name='Energie Rinnovabili', year=3, degree_program=ing_energetica), Course(name='Sistemi Energetici', year=3, degree_program=ing_energetica), Course(name='Ingegneria della Sicurezza', year=3, degree_program=ing_energetica),
-                Course(name='Analisi Matematica I', year=1, degree_program=ing_civile), Course(name='Fisica Generale I', year=1, degree_program=ing_civile), Course(name='Geometria e Algebra Lineare', year=1, degree_program=ing_civile), Course(name='Chimica', year=1, degree_program=ing_civile), Course(name='Informatica', year=1, degree_program=ing_civile), Course(name='Disegno', year=1, degree_program=ing_civile), Course(name='Analisi Matematica II', year=2, degree_program=ing_civile), Course(name='Fisica Generale II', year=2, degree_program=ing_civile), Course(name='Meccanica Razionale', year=2, degree_program=ing_civile), Course(name='Scienza delle Costruzioni', year=2, degree_program=ing_civile), Course(name='Geotecnica', year=2, degree_program=ing_civile), Course(name='Idraulica', year=2, degree_program=ing_civile), Course(name='Tecnica delle Costruzioni', year=3, degree_program=ing_civile), Course(name='Costruzioni Idrauliche', year=3, degree_program=ing_civile), Course(name='Topografia e Cartografia', year=3, degree_program=ing_civile), Course(name='Trasporti', year=3, degree_program=ing_civile), Course(name='Estimo', year=3, degree_program=ing_civile), Course(name='Urbanistica', year=3, degree_program=ing_civile),
-                Course(name='Analisi Matematica I', year=1, degree_program=ing_informatica), Course(name='Fisica Generale I', year=1, degree_program=ing_informatica), Course(name='Geometria e Algebra Lineare', year=1, degree_program=ing_informatica), Course(name='Programmazione I', year=1, degree_program=ing_informatica), Course(name='Fondamenti di Informatica', year=1, degree_program=ing_informatica), Course(name='Calcolo Numerico', year=1, degree_program=ing_informatica), Course(name='Analisi Matematica II', year=2, degree_program=ing_informatica), Course(name='Fisica Generale II', year=2, degree_program=ing_informatica), Course(name='Architetture dei Calcolatori', year=2, degree_program=ing_informatica), Course(name='Sistemi Operativi', year=2, degree_program=ing_informatica), Course(name='Programmazione II', year=2, degree_program=ing_informatica), Course(name='Algoritmi e Strutture Dati', year=2, degree_program=ing_informatica), Course(name='Basi di Dati', year=3, degree_program=ing_informatica), Course(name='Reti di Calcolatori', year=3, degree_program=ing_informatica), Course(name='Ingegneria del Software', year=3, degree_program=ing_informatica), Course(name='Sicurezza dei Sistemi', year=3, degree_program=ing_informatica), Course(name='Intelligenza Artificiale', year=3, degree_program=ing_informatica), Course(name='Sistemi Distribuiti', year=3, degree_program=ing_informatica),
-                Course(name='Analisi Matematica I', year=1, degree_program=ing_biomedica), Course(name='Fisica Generale I', year=1, degree_program=ing_biomedica), Course(name='Geometria e Algebra Lineare', year=1, degree_program=ing_biomedica), Course(name='Biologia', year=1, degree_program=ing_biomedica), Course(name='Chimica', year=1, degree_program=ing_biomedica), Course(name='Informatica', year=1, degree_program=ing_biomedica), Course(name='Analisi Matematica II', year=2, degree_program=ing_biomedica), Course(name='Fisica Generale II', year=2, degree_program=ing_biomedica), Course(name='Meccanica Razionale', year=2, degree_program=ing_biomedica), Course(name='Fisiologia', year=2, degree_program=ing_biomedica), Course(name='Elettrotecnica', year=2, degree_program=ing_biomedica), Course(name='Elettronica', year=2, degree_program=ing_biomedica), Course(name='Bioingegneria dei Sistemi', year=3, degree_program=ing_biomedica), Course(name='Strumentazione Biomedica', year=3, degree_program=ing_biomedica), Course(name='Elaborazione dei Segnali Biomedici', year=3, degree_program=ing_biomedica), Course(name='Modellistica e Simulazione', year=3, degree_program=ing_biomedica), Course(name='Materiali Biomedici', year=3, degree_program=ing_biomedica), Course(name='Bioetica e Legislazione', year=3, degree_program=ing_biomedica),
-            ])
-            db.session.commit()
-
-            print("Dati di esempio per Dipartimenti, Corsi di Laurea ed Esami aggiunti.")
-        else:
-            print("Database già popolato con dati. Salto l'inserimento dei dati di esempio.")
-        
-    app.run(debug=True)
+# L'esecuzione dell'app è gestita da Gunicorn in produzione,
+# quindi il blocco `if __name__ == '__main__':` con `app.run(debug=True)` non serve qui.
+# La logica di inizializzazione del DB è spostata in init_db.py.
