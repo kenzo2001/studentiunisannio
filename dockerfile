@@ -11,7 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copia tutto il resto del codice sorgente nella directory di lavoro (include app.py e init_db.py)
 COPY . .
 
-# Crea la directory 'uploads' per i file caricati (Fly.io gestirà la persistenza con volumi)
+# Crea la directory 'uploads' per i file caricati (non verrà usata con S3, ma è una buona pratica)
 RUN mkdir -p uploads
 
 # NUOVA RIGA: Esegui lo script di inizializzazione del DB durante la build
