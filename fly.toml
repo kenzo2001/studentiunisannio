@@ -7,6 +7,16 @@ app = 'studentiunisannio1991'
 primary_region = 'fra'
 
 [build]
+# fly.toml
+app = "studentiunisannio1991" # Il nome della tua app su Fly.io (dovrebbe già essere qui)
+primary_region = "fra" # La regione della tua app (dovrebbe già essere qui)
+
+[build]
+  builder = "paketobuildpacks/builder-python" # Questo potrebbe essere diverso, controlla la tua riga [build] esistente
+  # Aggiungi questa sezione per passare DATABASE_URL al processo di build
+  [build.args]
+    DATABASE_URL = "postgres://postgres:k8OAWsfTNiwoQ4n@polished-night-1030.flycast:5432"
+
 
 [http_service]
   internal_port = 8080
