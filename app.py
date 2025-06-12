@@ -1,20 +1,48 @@
 import os
 from flask import Flask, jsonify, request, send_from_directory, redirect, url_for, session, current_app 
 from flask_sqlalchemy import SQLAlchemy
-# AGGIUNGI secure_filename QUI
 from werkzeug.security import generate_password_hash, check_password_hash 
-from werkzeug.utils import secure_filename # <-- AGGIUNGI QUESTA RIGA!
 from datetime import datetime
 from flask_cors import CORS 
 import boto3 
 from botocore.exceptions import NoCredentialsError, ClientError
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user 
-
-# Inizializza l'app Flask
-# static_folder='.' dice a Flask di cercare file statici nella directory corrente
-# static_url_path='/' serve per servire i file statici dalla radice dell'URL
+from werkzeug.utils import secure_filename 
 app = Flask(__name__, static_folder='.', static_url_path='/') 
 
+# --- Configurazione del Database ---
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///unisannio_appunti.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False 
+
+# AGGIORNA QUESTA CHIAVE SEGRETA! Deve essere LUNGA, CASUALE e UNICA per la TUA APP.
+# Puoi generarne una con: os.urandom(24).hex() in una console Python
+app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'la_tua_chiave_segreta_iniziale_da_cambiare')
+
+# --- Configurazione per il Dominio del Cookie di Sessione ---
+# Questo è CRUCIALE per i domini personalizzati e i sottodomini.
+# Imposta il dominio del cookie per includere tutti i sottodomini (es. www)
+# CAMBIA QUESTO VALORE IN BASE AL DOMINIO CHE STAI EFFETTIVAMENTE USANDO PER ACCEDERE ALL'APP
+# Se usi studentiunisannio1991.fly.dev:
+# app.config['SESSION_COOKIE_DOMAIN'] = '.studentiunisannio1991.fly.dev' # Nota il '.' iniziale per sottodomini
+# Se usi studentiunisannio.it o www.studentiunisannio.it:
+app.config['SESSION_COOKIE_DOMAIN'] = '.studentiunisannio.it' # Nota il '.' iniziale per includere www.
+# Se non sei sicuro, commenta questa riga per un momento per vedere se Flask la inferisce correttamente,
+# ma spesso è meglio specificarla.
+
+# --- Configurazione per i Domini Email Permessi ---
+app.config['ALLOWED_EMAIL_DOMAINS'] = ['unisannio.it', 'studenti.unisannio.it', 'example.com'] 
+
+db = SQLAlchemy() 
+db.init_app(app) 
+
+# CORS con supports_credentials=True è NECESSARIO per i cookie di sessione
+CORS(app, supports_credentials=True) 
+
+# --- Configurazione Flask-Login ---
+login_manager = LoginManager()
+login_manager.init_app(app)
+
+# ... (il resto del tuo app.py rimane invariato) ...
 # --- Configurazione del Database ---
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///unisannio_appunti.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False 
