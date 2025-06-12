@@ -1,38 +1,66 @@
 import os
-from flask import Flask, jsonify, request, send_from_directory, redirect, url_for, session
+from flask import Flask, jsonify, request, send_from_directory, redirect, url_for, session, current_app 
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash # Per hashing password
+# AGGIUNGI secure_filename QUI
+from werkzeug.security import generate_password_hash, check_password_hash 
+from werkzeug.utils import secure_filename # <-- AGGIUNGI QUESTA RIGA!
 from datetime import datetime
 from flask_cors import CORS 
 import boto3 
 from botocore.exceptions import NoCredentialsError, ClientError
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user # Per gestione login
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user 
 
+# Inizializza l'app Flask
+# static_folder='.' dice a Flask di cercare file statici nella directory corrente
+# static_url_path='/' serve per servire i file statici dalla radice dell'URL
 app = Flask(__name__, static_folder='.', static_url_path='/') 
 
 # --- Configurazione del Database ---
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///unisannio_appunti.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False 
-# Chiave segreta per le sessioni Flask (CAMBIALA IN PRODUZIONE!)
+# Chiave segreta per le sessioni Flask (CAMBIALA IN PRODUZIONE! Usa una stringa lunga e casuale)
 app.config['SECRET_KEY'] = 'la_tua_chiave_segreta_molto_forte_e_unica_e_non_renderla_pubblica' 
 
+# --- Configurazione per i Domini Email Permessi ---
+# Lista dei domini email consentiti per la registrazione
+# CAMBIA QUESTI DOMINI con quelli reali che vuoi accettare (es. ['unisannio.it'])
+app.config['ALLOWED_EMAIL_DOMAINS'] = ['unisannio.it', 'studenti.unisannio.it', 'example.com'] 
+
+# Inizializza SQLAlchemy e collegalo all'app
 db = SQLAlchemy() 
 db.init_app(app) 
 
-CORS(app, supports_credentials=True) # ATTENZIONE: supports_credentials=True è NECESSARIO per i cookie di sessione
+# Configurazione CORS per permettere richieste da frontend (cruciale per cookie di sessione)
+CORS(app, supports_credentials=True) 
 
 # --- Configurazione Flask-Login ---
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'login_page_frontend' # Rotta del frontend per il login (se non loggato)
+# La gestione del reindirizzamento per utenti non autorizzati è affidata a @login_manager.unauthorized_handler
+
+# Funzione richiesta da Flask-Login per caricare un utente dato il suo ID
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+# Funzione per gestire l'accesso non autorizzato (richiesta da Flask-Login)
+@login_manager.unauthorized_handler
+def unauthorized():
+    # Se la richiesta è AJAX (API), restituiamo 401 JSON
+    if request.path.startswith('/api/'):
+        return jsonify({"error": "Accesso non autorizzato. Effettua il login."}), 401
+    # Se la richiesta è una navigazione diretta del browser, reindirizza alla pagina di login del frontend
+    return redirect(url_for('serve_login_page')) 
 
 # --- Configurazione AWS S3 ---
+# Prende le credenziali e la regione dalle variabili d'ambiente di Fly.io
 S3_BUCKET = os.environ.get("S3_BUCKET_NAME")
 S3_KEY = os.environ.get("AWS_ACCESS_KEY_ID")
 S3_SECRET = os.environ.get("AWS_SECRET_ACCESS_KEY")
 S3_REGION = os.environ.get("S3_REGION") 
 
 s3_client = None
+# Inizializza il client S3 solo se tutte le credenziali e il bucket sono disponibili
 if S3_KEY and S3_SECRET and S3_REGION and S3_BUCKET:
     try:
         s3_client = boto3.client(
@@ -44,6 +72,7 @@ if S3_KEY and S3_SECRET and S3_REGION and S3_BUCKET:
     except Exception as e:
         print(f"Errore nell'inizializzazione del client S3: {e}")
 else:
+    # Questo messaggio verrà stampato nei log se le variabili non sono impostate
     print("Variabili d'ambiente AWS S3 non impostate. Le operazioni S3 falliranno.")
 
 # --- Validazione Tipo File ---
@@ -54,12 +83,12 @@ def allowed_file(filename):
 
 # --- Definizione dei Modelli del Database ---
 # MODELLO USER
-class User(UserMixin, db.Model): # UserMixin fornisce implementazioni di default per i metodi richiesti da Flask-Login
+class User(UserMixin, db.Model): 
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False) # Per salvare la password hashata
+    password_hash = db.Column(db.String(128), nullable=False) 
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -74,12 +103,7 @@ class User(UserMixin, db.Model): # UserMixin fornisce implementazioni di default
             "email": self.email
         }
 
-# Funzione richiesta da Flask-Login per caricare un utente
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
-
-# ... (Le classi Department, DegreeProgram, Course, Note rimangono invariate) ...
+# Modello Dipartimento
 class Department(db.Model):
     __tablename__ = 'departments' 
     id = db.Column(db.Integer, primary_key=True)
@@ -88,6 +112,7 @@ class Department(db.Model):
     def to_dict(self):
         return {"id": self.id, "name": self.name}
 
+# Modello Corso di Laurea
 class DegreeProgram(db.Model):
     __tablename__ = 'degree_programs'
     id = db.Column(db.Integer, primary_key=True)
@@ -97,6 +122,7 @@ class DegreeProgram(db.Model):
     def to_dict(self):
         return {"id": self.id, "name": self.name, "department_id": self.department_id}
 
+# Modello Corso (Esame)
 class Course(db.Model):
     __tablename__ = 'courses'
     id = db.Column(db.Integer, primary_key=True)
@@ -112,6 +138,7 @@ class Course(db.Model):
             "degree_program_id": self.degree_program_id
         }
 
+# Modello Appunto
 class Note(db.Model):
     __tablename__ = 'notes'
     id = db.Column(db.Integer, primary_key=True)
@@ -135,17 +162,30 @@ class Note(db.Model):
 
 # --- Rotte per Servire i File del Frontend ---
 
+# Rotta per la homepage (index.html)
 @app.route('/')
 def serve_index():
     return send_from_directory('.', 'index.html')
 
+# Rotta per servire la pagina di login
+@app.route('/login.html')
+def serve_login_page():
+    return send_from_directory('.', 'login.html')
+
+# Rotta per servire la pagina di registrazione
+@app.route('/register.html')
+def serve_register_page():
+    return send_from_directory('.', 'register.html')
+
+# Rotta generica per servire tutti gli altri file statici (es. ding.html, style.css, script.js)
 @app.route('/<path:filename>')
 def serve_static_files(filename):
     return send_from_directory('.', filename)
 
 
-# --- NUOVE Rotte API per l'Autenticazione ---
+# --- Rotte API ---
 
+# API per la registrazione
 @app.route('/api/register', methods=['POST'])
 def register():
     data = request.get_json()
@@ -156,6 +196,13 @@ def register():
     if not username or not email or not password:
         return jsonify({"error": "Username, email e password sono obbligatori"}), 400
 
+    # Validazione del dominio email
+    allowed_domains = app.config.get('ALLOWED_EMAIL_DOMAINS', [])
+    email_domain = email.split('@')[-1]
+
+    if allowed_domains and email_domain not in allowed_domains: # Controlla solo se la lista non è vuota
+        return jsonify({"error": f"Registrazione non consentita per il dominio {email_domain}. Sono ammessi solo domini: {', '.join(allowed_domains)}"}), 403
+
     if User.query.filter_by(username=username).first():
         return jsonify({"error": "Username già registrato"}), 409
     
@@ -163,12 +210,13 @@ def register():
         return jsonify({"error": "Email già registrata"}), 409
 
     new_user = User(username=username, email=email)
-    new_user.set_password(password) # Hash della password
+    new_user.set_password(password)
     
     db.session.add(new_user)
     db.session.commit()
     return jsonify({"message": "Registrazione avvenuta con successo!"}), 201
 
+# API per il login
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json()
@@ -177,18 +225,19 @@ def login():
 
     user = User.query.filter_by(username=username).first()
     if user and user.check_password(password):
-        login_user(user) # Imposta l'utente come loggato (salva sessione)
+        login_user(user) 
         return jsonify({"message": "Login avvenuto con successo!", "user": user.to_dict()}), 200
     else:
         return jsonify({"error": "Username o password non validi"}), 401
 
+# API per il logout
 @app.route('/api/logout', methods=['POST'])
-@login_required # Richiede che l'utente sia loggato per fare logout
+@login_required 
 def logout():
-    logout_user() # Effettua il logout dell'utente
+    logout_user() 
     return jsonify({"message": "Logout avvenuto con successo!"}), 200
 
-# Rotta per controllare lo stato di login dell'utente (opzionale per frontend)
+# API per controllare lo stato di login dell'utente corrente
 @app.route('/api/status', methods=['GET'])
 def get_status():
     if current_user.is_authenticated:
@@ -196,13 +245,13 @@ def get_status():
     else:
         return jsonify({"logged_in": False}), 200
 
-# --- Rotte API Esistenti (Modifica: Proteggi /api/upload_note) ---
-
+# API per ottenere tutti i dipartimenti
 @app.route('/api/departments', methods=['GET'])
 def get_departments():
     departments = Department.query.all()
     return jsonify([d.to_dict() for d in departments])
 
+# API per ottenere i corsi di laurea di un dipartimento
 @app.route('/api/departments/<int:department_id>/degree_programs', methods=['GET'])
 def get_degree_programs_by_department(department_id):
     degree_programs = DegreeProgram.query.filter_by(department_id=department_id).all()
@@ -210,6 +259,7 @@ def get_degree_programs_by_department(department_id):
         return jsonify({"message": "Nessun corso di laurea trovato per questo dipartimento"}), 404
     return jsonify([dp.to_dict() for dp in degree_programs])
 
+# API per ottenere gli esami di un corso di laurea per anno
 @app.route('/api/degree_programs/<int:degree_program_id>/courses/<int:year>', methods=['GET'])
 def get_courses_by_degree_and_year(degree_program_id, year):
     courses = Course.query.filter_by(degree_program_id=degree_program_id, year=year).all()
@@ -217,16 +267,17 @@ def get_courses_by_degree_and_year(degree_program_id, year):
         return jsonify({"message": "Nessun corso trovato per questo corso di laurea e anno"}), 404
     return jsonify([c.to_dict() for c in courses])
 
+# API per ottenere tutti gli appunti di un esame
 @app.route('/api/courses/<int:course_id>/notes', methods=['GET'])
 def get_notes_by_course(course_id):
     notes = Note.query.filter_by(course_id=course_id).all()
     if not notes:
         return jsonify({"message": "Nessun appunto trovato per questo esame"}), 404
-    return jsonify([n.to_dict() for n in notes])
+    return jsonify([n.to_dict() for n in notes]) 
 
-# PROTEGGI QUESTA ROTTA: Richiede login per caricare appunti
+# API per caricare un nuovo appunto su S3 (PROTETTA: richiede login)
 @app.route('/api/upload_note', methods=['POST'])
-@login_required # <-- AGGIUNGI QUESTO DECORATOR
+@login_required 
 def upload_note():
     if not s3_client:
         return jsonify({"error": "Servizio S3 non inizializzato. Controlla le variabili d'ambiente AWS."}), 500
@@ -257,7 +308,7 @@ def upload_note():
         description = request.form.get('description', '')
         course_id = request.form.get('course_id')
         
-        # Nome dell'uploader prende ora lo username dell'utente loggato
+        # Il nome dell'uploader è preso dall'utente attualmente loggato
         uploader_name = current_user.username if current_user.is_authenticated else 'Anonimo' 
 
         if not title or not course_id:
@@ -273,7 +324,7 @@ def upload_note():
                 description=description,
                 s3_key=key, 
                 course_id=int(course_id),
-                uploader_name=uploader_name # Usa lo username loggato
+                uploader_name=uploader_name 
             )
             db.session.add(new_note)
             db.session.commit()
@@ -288,6 +339,7 @@ def upload_note():
     else:
         return jsonify({"error": "Tipo di file non permesso o file non valido"}), 400
 
+# API per scaricare un appunto da S3 (restituisce URL pre-firmato)
 @app.route('/api/notes/<int:note_id>/download', methods=['GET'])
 def download_note(note_id):
     if not s3_client:
@@ -311,4 +363,5 @@ def download_note(note_id):
     except Exception as e:
         return jsonify({"error": f"Errore generico generazione URL S3: {str(e)}"}), 500
 
+# L'esecuzione dell'app è gestita da Gunicorn in produzione.
 # La logica di inizializzazione del DB è spostata in init_db.py.
