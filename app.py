@@ -1,34 +1,37 @@
 import os
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash # Per hashing password
 from datetime import datetime
 from flask_cors import CORS 
-import boto3 # <-- AGGIUNGI QUESTO IMPORT
-from botocore.exceptions import NoCredentialsError, ClientError # <-- AGGIUNGI QUESTI IMPORT
+import boto3 
+from botocore.exceptions import NoCredentialsError, ClientError
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user # Per gestione login
 
-# Inizializza l'app Flask
 app = Flask(__name__, static_folder='.', static_url_path='/') 
 
 # --- Configurazione del Database ---
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///unisannio_appunti.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False 
+# Chiave segreta per le sessioni Flask (CAMBIALA IN PRODUZIONE!)
+app.config['SECRET_KEY'] = 'la_tua_chiave_segreta_molto_forte_e_unica_e_non_renderla_pubblica' 
 
-# Inizializza SQLAlchemy e collegalo all'app
 db = SQLAlchemy() 
 db.init_app(app) 
 
-# Configurazione CORS
-CORS(app) 
+CORS(app, supports_credentials=True) # ATTENZIONE: supports_credentials=True è NECESSARIO per i cookie di sessione
+
+# --- Configurazione Flask-Login ---
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login_page_frontend' # Rotta del frontend per il login (se non loggato)
 
 # --- Configurazione AWS S3 ---
-# Prende le credenziali e la regione dalle variabili d'ambiente di Fly.io
 S3_BUCKET = os.environ.get("S3_BUCKET_NAME")
 S3_KEY = os.environ.get("AWS_ACCESS_KEY_ID")
 S3_SECRET = os.environ.get("AWS_SECRET_ACCESS_KEY")
-S3_REGION = os.environ.get("S3_REGION") # Verrà impostata da flyctl secrets set
+S3_REGION = os.environ.get("S3_REGION") 
 
-# Inizializza il client S3 solo se le credenziali sono disponibili
 s3_client = None
 if S3_KEY and S3_SECRET and S3_REGION and S3_BUCKET:
     try:
@@ -43,7 +46,6 @@ if S3_KEY and S3_SECRET and S3_REGION and S3_BUCKET:
 else:
     print("Variabili d'ambiente AWS S3 non impostate. Le operazioni S3 falliranno.")
 
-
 # --- Validazione Tipo File ---
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'ppt', 'pptx'} 
 def allowed_file(filename):
@@ -51,7 +53,33 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # --- Definizione dei Modelli del Database ---
-# MODIFICA: 'file_path' diventa 's3_key' per memorizzare la chiave S3
+# MODELLO USER
+class User(UserMixin, db.Model): # UserMixin fornisce implementazioni di default per i metodi richiesti da Flask-Login
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False) # Per salvare la password hashata
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+    
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "username": self.username,
+            "email": self.email
+        }
+
+# Funzione richiesta da Flask-Login per caricare un utente
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+# ... (Le classi Department, DegreeProgram, Course, Note rimangono invariate) ...
 class Department(db.Model):
     __tablename__ = 'departments' 
     id = db.Column(db.Integer, primary_key=True)
@@ -89,7 +117,7 @@ class Note(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    s3_key = db.Column(db.String(255), nullable=False) # <-- MODIFICA QUI: Salva la chiave S3
+    s3_key = db.Column(db.String(255), nullable=False) 
     upload_date = db.Column(db.DateTime, default=datetime.utcnow)
     course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
     uploader_name = db.Column(db.String(80), nullable=True)
@@ -98,14 +126,14 @@ class Note(db.Model):
             "id": self.id,
             "title": self.title,
             "description": self.description,
-            "s3_key": self.s3_key, # <-- MODIFICA QUI
+            "s3_key": self.s3_key, 
             "upload_date": self.upload_date.isoformat(),
             "course_id": self.course_id,
             "uploader_name": self.uploader_name
         }
 
 
-# --- Rotte per Servire i File del Frontend (HTML, CSS, JS) ---
+# --- Rotte per Servire i File del Frontend ---
 
 @app.route('/')
 def serve_index():
@@ -116,7 +144,59 @@ def serve_static_files(filename):
     return send_from_directory('.', filename)
 
 
-# --- Rotte API ---
+# --- NUOVE Rotte API per l'Autenticazione ---
+
+@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    username = data.get('username')
+    email = data.get('email')
+    password = data.get('password')
+
+    if not username or not email or not password:
+        return jsonify({"error": "Username, email e password sono obbligatori"}), 400
+
+    if User.query.filter_by(username=username).first():
+        return jsonify({"error": "Username già registrato"}), 409
+    
+    if User.query.filter_by(email=email).first():
+        return jsonify({"error": "Email già registrata"}), 409
+
+    new_user = User(username=username, email=email)
+    new_user.set_password(password) # Hash della password
+    
+    db.session.add(new_user)
+    db.session.commit()
+    return jsonify({"message": "Registrazione avvenuta con successo!"}), 201
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+
+    user = User.query.filter_by(username=username).first()
+    if user and user.check_password(password):
+        login_user(user) # Imposta l'utente come loggato (salva sessione)
+        return jsonify({"message": "Login avvenuto con successo!", "user": user.to_dict()}), 200
+    else:
+        return jsonify({"error": "Username o password non validi"}), 401
+
+@app.route('/api/logout', methods=['POST'])
+@login_required # Richiede che l'utente sia loggato per fare logout
+def logout():
+    logout_user() # Effettua il logout dell'utente
+    return jsonify({"message": "Logout avvenuto con successo!"}), 200
+
+# Rotta per controllare lo stato di login dell'utente (opzionale per frontend)
+@app.route('/api/status', methods=['GET'])
+def get_status():
+    if current_user.is_authenticated:
+        return jsonify({"logged_in": True, "user": current_user.to_dict()}), 200
+    else:
+        return jsonify({"logged_in": False}), 200
+
+# --- Rotte API Esistenti (Modifica: Proteggi /api/upload_note) ---
 
 @app.route('/api/departments', methods=['GET'])
 def get_departments():
@@ -137,17 +217,16 @@ def get_courses_by_degree_and_year(degree_program_id, year):
         return jsonify({"message": "Nessun corso trovato per questo corso di laurea e anno"}), 404
     return jsonify([c.to_dict() for c in courses])
 
-# ROTTA API: Ottiene gli appunti di un corso
-# Restituisce i dettagli dell'appunto, inclusa la chiave S3
 @app.route('/api/courses/<int:course_id>/notes', methods=['GET'])
 def get_notes_by_course(course_id):
     notes = Note.query.filter_by(course_id=course_id).all()
     if not notes:
         return jsonify({"message": "Nessun appunto trovato per questo esame"}), 404
-    return jsonify([n.to_dict() for n in notes]) # Ora to_dict include s3_key
+    return jsonify([n.to_dict() for n in notes])
 
-# ROTTA API: Carica un nuovo appunto su S3
+# PROTEGGI QUESTA ROTTA: Richiede login per caricare appunti
 @app.route('/api/upload_note', methods=['POST'])
+@login_required # <-- AGGIUNGI QUESTO DECORATOR
 def upload_note():
     if not s3_client:
         return jsonify({"error": "Servizio S3 non inizializzato. Controlla le variabili d'ambiente AWS."}), 500
@@ -161,18 +240,15 @@ def upload_note():
         return jsonify({"error": "Nome file vuoto"}), 400
     
     if file and allowed_file(file.filename):
-        # Genera una chiave S3 univoca (per evitare sovrascritture)
-        # Combina un timestamp con il nome del file sicuro
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        key = f"{timestamp}_{secure_filename(file.filename)}" # <-- Chiave S3 univoca
+        key = f"{timestamp}_{secure_filename(file.filename)}" 
         
         try:
-            # Carica il file su S3
             s3_client.upload_fileobj(file, S3_BUCKET, key)
             print(f"File {key} caricato con successo nel bucket S3: {S3_BUCKET}")
         except NoCredentialsError:
             return jsonify({"error": "Credenziali AWS non disponibili"}), 500
-        except ClientError as e: # Per errori specifici di S3 come bucket non trovato, permessi
+        except ClientError as e: 
             return jsonify({"error": f"Errore client S3: {e.response['Error']['Message']}"}), 500
         except Exception as e:
             return jsonify({"error": f"Errore generico caricamento su S3: {str(e)}"}), 500
@@ -180,10 +256,11 @@ def upload_note():
         title = request.form.get('title')
         description = request.form.get('description', '')
         course_id = request.form.get('course_id')
-        uploader_name = request.form.get('uploader_name', 'Anonimo')
+        
+        # Nome dell'uploader prende ora lo username dell'utente loggato
+        uploader_name = current_user.username if current_user.is_authenticated else 'Anonimo' 
 
         if not title or not course_id:
-            # Se i dati obbligatori non ci sono, elimina il file da S3 (se caricato)
             try:
                 s3_client.delete_object(Bucket=S3_BUCKET, Key=key)
             except Exception as e:
@@ -194,16 +271,15 @@ def upload_note():
             new_note = Note(
                 title=title,
                 description=description,
-                s3_key=key, # Salva la chiave S3, non il path locale
+                s3_key=key, 
                 course_id=int(course_id),
-                uploader_name=uploader_name
+                uploader_name=uploader_name # Usa lo username loggato
             )
             db.session.add(new_note)
             db.session.commit()
             return jsonify({"message": "Appunto caricato con successo!", "note": new_note.to_dict()}), 201
         except Exception as e:
             db.session.rollback()
-            # Se c'è un errore DB, prova a eliminare il file da S3
             try:
                 s3_client.delete_object(Bucket=S3_BUCKET, Key=key)
             except Exception as e_s3:
@@ -212,7 +288,6 @@ def upload_note():
     else:
         return jsonify({"error": "Tipo di file non permesso o file non valido"}), 400
 
-# ROTTA API: Scarica un appunto da S3 (restituisce URL pre-firmato)
 @app.route('/api/notes/<int:note_id>/download', methods=['GET'])
 def download_note(note_id):
     if not s3_client:
@@ -223,13 +298,12 @@ def download_note(note_id):
         return jsonify({"message": "Appunto non trovato"}), 404
     
     try:
-        # Genera un URL pre-firmato per il download da S3
         s3_url = s3_client.generate_presigned_url(
             'get_object',
             Params={'Bucket': S3_BUCKET, 'Key': note.s3_key},
-            ExpiresIn=300 # URL valido per 5 minuti
+            ExpiresIn=300 
         )
-        return jsonify({"download_url": s3_url}) # Restituisce l'URL al frontend
+        return jsonify({"download_url": s3_url}) 
     except NoCredentialsError:
         return jsonify({"error": "Credenziali AWS non disponibili"}), 500
     except ClientError as e:
@@ -237,5 +311,4 @@ def download_note(note_id):
     except Exception as e:
         return jsonify({"error": f"Errore generico generazione URL S3: {str(e)}"}), 500
 
-# L'esecuzione dell'app è gestita da Gunicorn in produzione.
 # La logica di inizializzazione del DB è spostata in init_db.py.

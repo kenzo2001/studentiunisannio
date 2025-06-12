@@ -1,5 +1,7 @@
 Flask
 Flask-SQLAlchemy
 Flask-CORS
-gunicorn 
-boto3 
+gunicorn
+boto3
+Flask-Login      # <-- AGGIUNGI QUESTA
+Werkzeug 

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UNISANNIO APPUNTI - Login</title>
+    <link rel="stylesheet" href="style.css"> 
+    <style>
+        /* Stili specifici per i form di autenticazione, simili a upload_note.html e register.html */
+        .auth-form-container {
+            max-width: 450px;
+            margin: 40px auto;
+            padding: 30px;
+            background-color: var(--colore-bianco);
+            border: 1px solid var(--bordo-colore);
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+            text-align: left;
+        }
+
+        .auth-form-container h2 {
+            text-align: center;
+            color: var(--colore-testo);
+            margin-bottom: 25px;
+            font-size: 1.8em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--colore-testo);
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="email"],
+        .form-group input[type="password"] {
+            width: calc(100% - 20px);
+            padding: 10px;
+            border: 1px solid var(--bordo-colore);
+            border-radius: var(--border-radius);
+            font-family: var(--font-principale);
+            font-size: 1em;
+        }
+
+        .auth-submit-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: var(--colore-primario);
+            color: var(--colore-bianco);
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .auth-submit-btn:hover {
+            background-color: var(--colore-primario-hover);
+        }
+
+        .auth-message {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: var(--border-radius);
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .auth-message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border-color: #c3e6cb;
+        }
+
+        .auth-message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-color: #f5c6cb;
+        }
+        .auth-form-container p.switch-link {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+        .auth-form-container p.switch-link a {
+            color: var(--colore-primario);
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .auth-form-container p.switch-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>UNISANNIO APPUNTI</h1>
+        <p>gli studenti x gli studenti</p>
+    </header>
+
+    <nav class="navbar">
+        <a id="nav-home" href="index.html">Home</a>
+        <a id="nav-ding" href="ding.html">DING</a>
+        <a id="nav-dst" href="dst.html">DST</a>     
+        <a id="nav-demm" href="demm.html">DEMM</a>
+        <a id="nav-contatti" href="contatti.html">Contatti</a>
+        <div style="margin-left: auto; display: flex; align-items: center;">
+            <span id="user-status" style="color: white; font-size: 0.9em; margin-right: 15px;"></span>
+            <a id="nav-register" href="register.html">Registrati</a>
+            <a id="nav-login" href="login.html">Login</a>
+            <a id="nav-logout" href="#" style="display: none;">Logout</a>
+            <a id="nav-upload" href="upload_note.html" style="display: none;">Carica Appunto</a>
+        </div>
+    </nav>
+
+    <main>
+        <div class="auth-form-container">
+            <h2>Login</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="auth-submit-btn">Accedi</button>
+            </form>
+            <div id="login-message" class="auth-message"></div>
+            <p class="switch-link">Non hai un account? <a href="register.html">Registrati qui</a></p>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Nome della Tua Attività - Tutti i diritti riservati.</p>
+        <p>Powered by cusas engegnering</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

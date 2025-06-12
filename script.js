@@ -29,9 +29,11 @@ document.addEventListener('DOMContentLoaded', function() {
                           currentPage.startsWith('ing_informatica.html') ||
                           currentPage.startsWith('ing_biomedica.html');
         
-        const isUploadPage = currentPage === 'upload_note.html'; // Nuova variabile per la pagina di upload
+        const isUploadPage = currentPage === 'upload_note.html'; 
+        const isLoginPage = currentPage === 'login.html'; // Nuova variabile
+        const isRegisterPage = currentPage === 'register.html'; // Nuova variabile
 
-        if (isIngPage || isUploadPage) { // Ora include anche la pagina di upload nel rosso
+        if (isIngPage || isUploadPage || isLoginPage || isRegisterPage) { // Include anche le pagine di auth nel rosso
             header.classList.add('header-ingegneria');
         } else {
             navLinks.forEach(link => {
@@ -144,7 +146,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                         currentContentDiv.querySelectorAll('.view-notes-btn').forEach(button => {
                             button.addEventListener('click', function(event) {
-                                event.preventDefault(); // Impedisce al link di navigare
+                                event.preventDefault(); 
                                 const courseId = this.dataset.courseId;
                                 const notesContainer = document.getElementById(`notes-for-course-${courseId}`);
                                 if (notesContainer.style.display === 'none') {
@@ -190,13 +192,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 let notesHtml = `<div class="course-notes-list">`;
                 if (Array.isArray(notesData) && notesData.length > 0) { 
                     notesData.forEach(note => {
-                        const downloadUrl = `${API_BASE_URL}/notes/${note.id}/download`;
+                        const downloadApiUrl = `${API_BASE_URL}/notes/${note.id}/download`;
                         notesHtml += `
                             <div class="note-item">
                                 <h4>${note.title}</h4>
                                 <p>${note.description || 'Nessuna descrizione.'}</p>
                                 <p>Caricato da: ${note.uploader_name} il ${new Date(note.upload_date).toLocaleDateString()}</p>
-                                <a href="${downloadUrl}" class="download-note-btn" target="_blank">Scarica Appunto</a>
+                                <a href="${downloadApiUrl}" class="download-note-btn" target="_blank">Scarica Appunto</a>
                             </div>
                         `;
                     });
@@ -220,144 +222,293 @@ document.addEventListener('DOMContentLoaded', function() {
         firstYearButton.click(); 
     }
 
-    // NUOVA FUNZIONE: Inizializzazione della pagina di upload
-    // Questa funzione viene chiamata solo se la pagina corrente è upload_note.html
-    function setupUploadPage() {
-        const departmentSelect = document.getElementById('departmentSelect');
-        const degreeProgramSelect = document.getElementById('degreeProgramSelect');
-        const courseSelect = document.getElementById('courseSelect');
-        const uploadNoteForm = document.getElementById('uploadNoteForm');
-        const uploadMessage = document.getElementById('upload-message');
-
-        // Funzione per caricare i dipartimenti
-        async function loadDepartments() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/departments`);
-                const departments = await response.json();
-                
-                departmentSelect.innerHTML = '<option value="">Seleziona Dipartimento</option>';
-                departments.forEach(dept => {
-                    const option = document.createElement('option');
-                    option.value = dept.id;
-                    option.textContent = dept.name;
-                    departmentSelect.appendChild(option);
-                });
-            } catch (error) {
-                console.error('Errore nel caricamento dei dipartimenti:', error);
-                uploadMessage.textContent = 'Errore nel caricamento dei dipartimenti.';
-                uploadMessage.className = 'error';
-            }
-        }
-
-        // Funzione per caricare i corsi di laurea in base al dipartimento selezionato
-        async function loadDegreePrograms(departmentId) {
-            degreeProgramSelect.innerHTML = '<option value="">Seleziona Corso di Laurea</option>';
-            degreeProgramSelect.disabled = true;
-            courseSelect.innerHTML = '<option value="">Seleziona Esame/Materia</option>';
-            courseSelect.disabled = true;
-
-            if (!departmentId) return;
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/departments/${departmentId}/degree_programs`);
-                const degreePrograms = await response.json();
-                
-                degreePrograms.forEach(dp => {
-                    const option = document.createElement('option');
-                    option.value = dp.id;
-                    option.textContent = dp.name;
-                    degreeProgramSelect.appendChild(option);
-                });
-                degreeProgramSelect.disabled = false;
-            } catch (error) {
-                console.error('Errore nel caricamento dei corsi di laurea:', error);
-                uploadMessage.textContent = 'Errore nel caricamento dei corsi di laurea.';
-                uploadMessage.className = 'error';
-            }
-        }
-
-        // Funzione per caricare gli esami in base al corso di laurea selezionato
-        async function loadCourses(degreeProgramId) {
-            courseSelect.innerHTML = '<option value="">Seleziona Esame/Materia</option>';
-            courseSelect.disabled = true;
-
-            if (!degreeProgramId) return;
-
-            try {
-                let allCourses = [];
-                for (let year = 1; year <= 3; year++) { 
-                    const response = await fetch(`${API_BASE_URL}/degree_programs/${degreeProgramId}/courses/${year}`);
-                    if (response.ok) {
-                        const coursesByYear = await response.json();
-                        allCourses = allCourses.concat(coursesByYear);
-                    }
-                }
-                
-                allCourses.sort((a,b) => a.name.localeCompare(b.name)); 
-                allCourses.forEach(course => {
-                    const option = document.createElement('option');
-                    option.value = course.id;
-                    option.textContent = `${course.name} (${course.year}° Anno)`;
-                    courseSelect.appendChild(option);
-                });
-                courseSelect.disabled = false;
-            } catch (error) {
-                console.error('Errore nel caricamento degli esami:', error);
-                uploadMessage.textContent = 'Errore nel caricamento degli esami.';
-                uploadMessage.className = 'error';
-            }
-        }
-
-        // Gestione eventi Change
-        departmentSelect.addEventListener('change', (e) => loadDegreePrograms(e.target.value));
-        degreeProgramSelect.addEventListener('change', (e) => loadCourses(e.target.value));
-
-        // Gestione del submit del form
-        uploadNoteForm.addEventListener('submit', async function(e) {
-            e.preventDefault(); 
-            uploadMessage.textContent = 'Caricamento in corso...';
-            uploadMessage.className = '';
-
-            const formData = new FormData(this); 
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/upload_note`, {
-                    method: 'POST',
-                    body: formData 
-                });
-
-                const result = await response.json();
-
-                if (response.ok) {
-                    uploadMessage.textContent = 'Appunto caricato con successo!';
-                    uploadMessage.className = 'success';
-                    uploadNoteForm.reset(); 
-                    degreeProgramSelect.innerHTML = '<option value="">Seleziona Corso di Laurea</option>';
-                    degreeProgramSelect.disabled = true;
-                    courseSelect.innerHTML = '<option value="">Seleziona Esame/Materia</option>';
-                    courseSelect.disabled = true;
-                } else {
-                    uploadMessage.textContent = `Errore: ${result.error || 'Qualcosa è andato storto'}`;
-                    uploadMessage.className = 'error';
-                }
-            } catch (error) {
-                console.error('Errore durante l\'upload:', error);
-                uploadMessage.textContent = `Errore di rete o server non raggiungibile: ${error.message}`;
-                uploadMessage.className = 'error';
-            }
-        });
-
-        // Carica i dipartimenti all'apertura della pagina
-        loadDepartments();
+    // Gestione dell'inizializzazione della pagina di upload/registrazione/login
+    if (currentPage === 'upload_note.html' || currentPage === 'login.html' || currentPage === 'register.html') {
+        setupAuthPages();
     }
 
-    // Al caricamento del DOM, controlla quale pagina siamo e inizializza le funzionalità.
-    if (currentPage === 'upload_note.html') {
-        setupUploadPage();
-        // Attiva il tab "DING" nella navbar per la pagina di upload
-        const navDing = document.getElementById('nav-ding');
-        if (navDing) {
-            navDing.classList.add('active-ding'); 
+    // NUOVA FUNZIONE: Inizializzazione delle pagine di autenticazione
+    function setupAuthPages() {
+        // --- LOGICA PER UPLOAD_NOTE.HTML ---
+        if (currentPage === 'upload_note.html') {
+            const departmentSelect = document.getElementById('departmentSelect');
+            const degreeProgramSelect = document.getElementById('degreeProgramSelect');
+            const courseSelect = document.getElementById('courseSelect');
+            const uploadNoteForm = document.getElementById('uploadNoteForm');
+            const uploadMessage = document.getElementById('upload-message');
+
+            // Funzione per caricare i dipartimenti
+            async function loadDepartments() {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/departments`);
+                    const departments = await response.json();
+                    
+                    departmentSelect.innerHTML = '<option value="">Seleziona Dipartimento</option>';
+                    departments.forEach(dept => {
+                        const option = document.createElement('option');
+                        option.value = dept.id;
+                        option.textContent = dept.name;
+                        departmentSelect.appendChild(option);
+                    });
+                } catch (error) {
+                    console.error('Errore nel caricamento dei dipartimenti:', error);
+                    uploadMessage.textContent = 'Errore nel caricamento dei dipartimenti.';
+                    uploadMessage.className = 'error';
+                }
+            }
+
+            // Funzione per caricare i corsi di laurea in base al dipartimento selezionato
+            async function loadDegreePrograms(departmentId) {
+                degreeProgramSelect.innerHTML = '<option value="">Seleziona Corso di Laurea</option>';
+                degreeProgramSelect.disabled = true;
+                courseSelect.innerHTML = '<option value="">Seleziona Esame/Materia</option>';
+                courseSelect.disabled = true;
+
+                if (!departmentId) return;
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/departments/${departmentId}/degree_programs`);
+                    const degreePrograms = await response.json();
+                    
+                    degreePrograms.forEach(dp => {
+                        const option = document.createElement('option');
+                        option.value = dp.id;
+                        option.textContent = dp.name;
+                        degreeProgramSelect.appendChild(option);
+                    });
+                    degreeProgramSelect.disabled = false;
+                } catch (error) {
+                    console.error('Errore nel caricamento dei corsi di laurea:', error);
+                    uploadMessage.textContent = 'Errore nel caricamento dei corsi di laurea.';
+                    uploadMessage.className = 'error';
+                }
+            }
+
+            // Funzione per caricare gli esami in base al corso di laurea selezionato
+            async function loadCourses(degreeProgramId) {
+                courseSelect.innerHTML = '<option value="">Seleziona Esame/Materia</option>';
+                courseSelect.disabled = true;
+
+                if (!degreeProgramId) return;
+
+                try {
+                    let allCourses = [];
+                    for (let year = 1; year <= 3; year++) { 
+                        const response = await fetch(`${API_BASE_URL}/degree_programs/${degreeProgramId}/courses/${year}`);
+                        if (response.ok) {
+                            const coursesByYear = await response.json();
+                            allCourses = allCourses.concat(coursesByYear);
+                        }
+                    }
+                    
+                    allCourses.sort((a,b) => a.name.localeCompare(b.name)); 
+                    allCourses.forEach(course => {
+                        const option = document.createElement('option');
+                        option.value = course.id;
+                        option.textContent = `${course.name} (${course.year}° Anno)`;
+                        courseSelect.appendChild(option);
+                    });
+                    courseSelect.disabled = false;
+                } catch (error) {
+                    console.error('Errore nel caricamento degli esami:', error);
+                    uploadMessage.textContent = 'Errore nel caricamento degli esami.';
+                    uploadMessage.className = 'error';
+                }
+            }
+
+            // Gestione eventi Change
+            departmentSelect.addEventListener('change', (e) => loadDegreePrograms(e.target.value));
+            degreeProgramSelect.addEventListener('change', (e) => loadCourses(e.target.value));
+
+            // Gestione del submit del form
+            uploadNoteForm.addEventListener('submit', async function(e) {
+                e.preventDefault(); 
+                uploadMessage.textContent = 'Caricamento in corso...';
+                uploadMessage.className = '';
+
+                const formData = new FormData(this); 
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/upload_note`, {
+                        method: 'POST',
+                        body: formData 
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        uploadMessage.textContent = 'Appunto caricato con successo!';
+                        uploadMessage.className = 'success';
+                        uploadNoteForm.reset(); 
+                        degreeProgramSelect.innerHTML = '<option value="">Seleziona Corso di Laurea</option>';
+                        degreeProgramSelect.disabled = true;
+                        courseSelect.innerHTML = '<option value="">Seleziona Esame/Materia</option>';
+                        courseSelect.disabled = true;
+                    } else {
+                        uploadMessage.textContent = `Errore: ${result.error || 'Qualcosa è andato storto'}`;
+                        uploadMessage.className = 'error';
+                    }
+                } catch (error) {
+                    console.error('Errore durante l\'upload:', error);
+                    uploadMessage.textContent = `Errore di rete o server non raggiungibile: ${error.message}`;
+                    uploadMessage.className = 'error';
+                }
+            });
+
+            // Carica i dipartimenti all'apertura della pagina
+            loadDepartments();
+        }
+
+        // --- LOGICA PER LOGIN.HTML ---
+        if (currentPage === 'login.html') {
+            const loginForm = document.getElementById('loginForm');
+            const loginMessage = document.getElementById('login-message');
+
+            if (loginForm) {
+                loginForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    loginMessage.textContent = 'Accesso in corso...';
+                    loginMessage.className = '';
+
+                    const username = document.getElementById('username').value;
+                    const password = document.getElementById('password').value;
+
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/login`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ username, password })
+                        });
+
+                        const result = await response.json();
+
+                        if (response.ok) {
+                            loginMessage.textContent = 'Login avvenuto con successo! Reindirizzamento...';
+                            loginMessage.className = 'success';
+                            // Salva lo stato di login (es. in localStorage o session cookie)
+                            localStorage.setItem('user_logged_in', 'true');
+                            localStorage.setItem('username', result.user.username);
+                            // Reindirizza alla home o a una pagina protetta
+                            window.location.href = 'index.html'; 
+                        } else {
+                            loginMessage.textContent = `Errore: ${result.error || 'Login fallito'}`;
+                            loginMessage.className = 'error';
+                        }
+                    } catch (error) {
+                        console.error('Errore durante il login:', error);
+                        loginMessage.textContent = `Errore di rete o server non raggiungibile: ${error.message}`;
+                        loginMessage.className = 'error';
+                    }
+                });
+            }
+        }
+
+        // --- LOGICA PER REGISTER.HTML ---
+        if (currentPage === 'register.html') {
+            const registerForm = document.getElementById('registerForm');
+            const registerMessage = document.getElementById('register-message');
+
+            if (registerForm) {
+                registerForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    registerMessage.textContent = 'Registrazione in corso...';
+                    registerMessage.className = '';
+
+                    const username = document.getElementById('reg-username').value;
+                    const email = document.getElementById('reg-email').value;
+                    const password = document.getElementById('reg-password').value;
+                    const confirmPassword = document.getElementById('confirm-password').value;
+
+                    if (password !== confirmPassword) {
+                        registerMessage.textContent = 'Le password non corrispondono.';
+                        registerMessage.className = 'error';
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/register`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ username, email, password })
+                        });
+
+                        const result = await response.json();
+
+                        if (response.ok) {
+                            registerMessage.textContent = 'Registrazione avvenuta con successo! Puoi effettuare il login.';
+                            registerMessage.className = 'success';
+                            registerForm.reset();
+                        } else {
+                            registerMessage.textContent = `Errore: ${result.error || 'Registrazione fallita'}`;
+                            registerMessage.className = 'error';
+                        }
+                    } catch (error) {
+                        console.error('Errore durante la registrazione:', error);
+                        registerMessage.textContent = `Errore di rete o server non raggiungibile: ${error.message}`;
+                        registerMessage.className = 'error';
+                    }
+                });
+            }
+        }
+
+        // Gestione della UI per lo stato di login/logout nella navbar
+        const userStatusElement = document.getElementById('user-status');
+        const loginLink = document.getElementById('nav-login');
+        const registerLink = document.getElementById('nav-register');
+        const logoutLink = document.getElementById('nav-logout');
+        const uploadNoteLink = document.getElementById('nav-upload'); // Assumi un ID per il link di upload
+
+        async function checkLoginStatus() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/status`);
+                const data = await response.json();
+
+                if (data.logged_in) {
+                    userStatusElement.textContent = `Benvenuto, ${data.user.username}!`;
+                    loginLink.style.display = 'none';
+                    registerLink.style.display = 'none';
+                    logoutLink.style.display = 'inline-block';
+                    if (uploadNoteLink) uploadNoteLink.style.display = 'inline-block'; // Mostra link upload se loggato
+                } else {
+                    userStatusElement.textContent = 'Non loggato';
+                    loginLink.style.display = 'inline-block';
+                    registerLink.style.display = 'inline-block';
+                    logoutLink.style.display = 'none';
+                    if (uploadNoteLink) uploadNoteLink.style.display = 'none'; // Nasconde link upload se non loggato
+                }
+            } catch (error) {
+                console.error('Errore nel controllo stato login:', error);
+                userStatusElement.textContent = 'Errore stato login.';
+            }
+        }
+
+        if (userStatusElement) {
+            checkLoginStatus(); // Controlla lo stato al caricamento di ogni pagina
+        }
+
+        if (logoutLink) {
+            logoutLink.addEventListener('click', async function(e) {
+                e.preventDefault();
+                try {
+                    const response = await fetch(`${API_BASE_URL}/logout`, { method: 'POST' });
+                    const result = await response.json();
+                    if (response.ok) {
+                        alert(result.message);
+                        localStorage.removeItem('user_logged_in'); // Pulisce lo stato locale
+                        localStorage.removeItem('username');
+                        window.location.reload(); // Ricarica la pagina per aggiornare la UI
+                    } else {
+                        alert(`Errore logout: ${result.error}`);
+                    }
+                } catch (error) {
+                    console.error('Errore durante il logout:', error);
+                    alert('Errore di rete durante il logout.');
+                }
+            });
         }
     }
 });
