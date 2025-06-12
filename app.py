@@ -11,8 +11,12 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__, static_folder='.', static_url_path='/') 
 
 # --- Configurazione del Database ---
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///unisannio_appunti.db'
+# Usa la variabile d'ambiente DATABASE_URL fornita da Fly.io per PostgreSQL
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL') or 'sqlite:///unisannio_appunti.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False 
+app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'la_tua_chiave_segreta_iniziale_da_cambiare')
+
+
 
 # AGGIORNA QUESTA CHIAVE SEGRETA! Deve essere LUNGA, CASUALE e UNICA per la TUA APP.
 # Puoi generarne una con: os.urandom(24).hex() in una console Python

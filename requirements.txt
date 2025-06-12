@@ -5,3 +5,4 @@ gunicorn
 boto3
 Flask-Login      # <-- AGGIUNGI QUESTA
 Werkzeug 
+psycopg2-binary
