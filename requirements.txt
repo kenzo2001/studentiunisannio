@@ -3,6 +3,6 @@ Flask-SQLAlchemy
 Flask-CORS
 gunicorn
 boto3
-Flask-Login      # <-- AGGIUNGI QUESTA
-Werkzeug 
-psycopg2-binary
+Flask-Login
+Werkzeug
+psycopg2-binary~=2.9.0 # S

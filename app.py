@@ -14,9 +14,12 @@ print("DEBUG: Avvio app.py")
 # Inizializza l'app Flask
 app = Flask(__name__, static_folder='.', static_url_path='/') 
 
-# --- Configurazione del Database (unica) ---
-# Usa la variabile d'ambiente DATABASE_URL fornita da Fly.io per PostgreSQL (o SQLite locale come fallback)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL') or 'sqlite:///unisannio_appunti.db'
+# --- Configurazione del Database (unica e corretta per PostgreSQL) ---
+# Usa la variabile d'ambiente DATABASE_URL fornita da Fly.io per PostgreSQL.
+# La parte .replace('postgres://', 'postgresql+psycopg2://') forza il dialetto corretto per SQLAlchemy.
+# Il fallback 'sqlite:///unisannio_appunti.db' è solo per sviluppo locale senza DB esterno.
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL').replace('postgres://', 'postgresql+psycopg2://') \
+                                        if os.environ.get('DATABASE_URL') else 'sqlite:///unisannio_appunti.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False 
 
 # Chiave segreta per le sessioni Flask (ESSENZIALE per sicurezza e mantenimento sessione)
