@@ -7,12 +7,17 @@ app = 'studentiunisannio1991'
 primary_region = 'fra' # O la tua regione corretta (es. 'fra' per Francoforte)
 
 [build]
-  builder = "paketobuildpacks/builder:base" # <-- MODIFICATO: Usa il builder Paketo base
+  builder = "paketobuildpacks/builder:base" # <-- MODIFICATO: Usa il builder Paketo base (questo è il fix definitivo del builder)
   # Aggiungi questa sezione per passare DATABASE_URL al processo di build
   [build.args]
     DATABASE_URL = "postgres://postgres:k8OAWsfTNiwoQ4n@polished-night-1030.flycast:5432"
     # SOSTITUISCI L'INTERA STRINGA con quella ESATTA del tuo database PostgreSQL
     # (inclusa la password che ti è stata data da flyctl postgres create)
+
+
+# SEZIONE NUOVA/MODIFICATA: Definisce come Fly.io deve avviare i processi
+[processes]
+  web = "gunicorn --bind 0.0.0.0:$PORT app:app" # <-- AGGIUNGI QUESTA SEZIONE (o modifica se l'hai già)
 
 
 [http_service]
@@ -21,7 +26,8 @@ primary_region = 'fra' # O la tua regione corretta (es. 'fra' per Francoforte)
   auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
-  processes = ['app']
+  processes = ['app'] # Assicurati che 'app' sia incluso qui, o usa 'web' se [processes] è definito
+
 
 [[vm]]
   memory = '1gb'
