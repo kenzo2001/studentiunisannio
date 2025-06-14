@@ -7,7 +7,7 @@ app = 'studentiunisannio1991'
 primary_region = 'fra' # O la tua regione corretta (es. 'fra' per Francoforte)
 
 [build]
-  builder = "heroku/buildpacks:20" # <-- MODIFICATO: Usa il builder Heroku per maggiore compatibilità
+  builder = "paketobuildpacks/builder:base" # <-- MODIFICATO: Usa il builder Paketo base
   # Aggiungi questa sezione per passare DATABASE_URL al processo di build
   [build.args]
     DATABASE_URL = "postgres://postgres:k8OAWsfTNiwoQ4n@polished-night-1030.flycast:5432"
