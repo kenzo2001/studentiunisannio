@@ -18,9 +18,3 @@ RUN mkdir -p uploads
 # Questo script creerà le tabelle e popolerà il database SQLite.
 RUN python init_db.py
 
-# Espone la porta su cui l'applicazione Flask ascolterà
-EXPOSE 8080
-
-# Comando per avviare l'applicazione usando Gunicorn
-# 'app:app' significa: nel file 'app.py', trova l'istanza di Flask chiamata 'app'
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"]

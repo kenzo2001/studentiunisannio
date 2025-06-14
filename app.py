@@ -2,73 +2,49 @@ import os
 from flask import Flask, jsonify, request, send_from_directory, redirect, url_for, session, current_app 
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash 
+from werkzeug.utils import secure_filename 
 from datetime import datetime
 from flask_cors import CORS 
 import boto3 
 from botocore.exceptions import NoCredentialsError, ClientError
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user 
-from werkzeug.utils import secure_filename 
+
+print("DEBUG: Avvio app.py") 
+
+# Inizializza l'app Flask
 app = Flask(__name__, static_folder='.', static_url_path='/') 
 
-# --- Configurazione del Database ---
-# Usa la variabile d'ambiente DATABASE_URL fornita da Fly.io per PostgreSQL
+# --- Configurazione del Database (unica) ---
+# Usa la variabile d'ambiente DATABASE_URL fornita da Fly.io per PostgreSQL (o SQLite locale come fallback)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL') or 'sqlite:///unisannio_appunti.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False 
-app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'la_tua_chiave_segreta_iniziale_da_cambiare')
 
-
-
-# AGGIORNA QUESTA CHIAVE SEGRETA! Deve essere LUNGA, CASUALE e UNICA per la TUA APP.
-# Puoi generarne una con: os.urandom(24).hex() in una console Python
-app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'la_tua_chiave_segreta_iniziale_da_cambiare')
+# Chiave segreta per le sessioni Flask (ESSENZIALE per sicurezza e mantenimento sessione)
+# Prende da variabile d'ambiente FLASK_SECRET_KEY su Fly.io, con un fallback per lo sviluppo locale.
+# DEVI IMPOSTARE FLASK_SECRET_KEY SU FLY.IO con una stringa lunga e casuale!
+app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'la_tua_chiave_segreta_iniziale_di_fallback_sicura')
 
 # --- Configurazione per il Dominio del Cookie di Sessione ---
 # Questo è CRUCIALE per i domini personalizzati e i sottodomini.
-# Imposta il dominio del cookie per includere tutti i sottodomini (es. www)
-# CAMBIA QUESTO VALORE IN BASE AL DOMINIO CHE STAI EFFETTIVAMENTE USANDO PER ACCEDERE ALL'APP
-# Se usi studentiunisannio1991.fly.dev:
-# app.config['SESSION_COOKIE_DOMAIN'] = '.studentiunisannio1991.fly.dev' # Nota il '.' iniziale per sottodomini
+# Imposta il dominio del cookie per includere tutti i sottodomini (nota il '.' iniziale)
+# CAMBIA QUESTO VALORE IN BASE AL DOMINIO CHE STAI EFFETTIVAMENTE USANDO PER ACCEDERE ALL'APP IN PRODUZIONE.
+# Se usi studentiunisannio1991.fly.dev: app.config['SESSION_COOKIE_DOMAIN'] = '.studentiunisannio1991.fly.dev'
 # Se usi studentiunisannio.it o www.studentiunisannio.it:
-app.config['SESSION_COOKIE_DOMAIN'] = '.studentiunisannio.it' # Nota il '.' iniziale per includere www.
-# Se non sei sicuro, commenta questa riga per un momento per vedere se Flask la inferisce correttamente,
-# ma spesso è meglio specificarla.
+app.config['SESSION_COOKIE_DOMAIN'] = '.studentiunisannio.it' 
 
-# --- Configurazione per i Domini Email Permessi ---
-app.config['ALLOWED_EMAIL_DOMAINS'] = ['unisannio.it', 'studenti.unisannio.it', 'example.com'] 
-
-db = SQLAlchemy() 
-db.init_app(app) 
-
-# CORS con supports_credentials=True è NECESSARIO per i cookie di sessione
-CORS(app, supports_credentials=True) 
-
-# --- Configurazione Flask-Login ---
-login_manager = LoginManager()
-login_manager.init_app(app)
-
-# ... (il resto del tuo app.py rimane invariato) ...
-# --- Configurazione del Database ---
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///unisannio_appunti.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False 
-# Chiave segreta per le sessioni Flask (CAMBIALA IN PRODUZIONE! Usa una stringa lunga e casuale)
-app.config['SECRET_KEY'] = 'la_tua_chiave_segreta_molto_forte_e_unica_e_non_renderla_pubblica' 
-
-# --- Configurazione per i Domini Email Permessi ---
-# Lista dei domini email consentiti per la registrazione
-# CAMBIA QUESTI DOMINI con quelli reali che vuoi accettare (es. ['unisannio.it'])
-app.config['ALLOWED_EMAIL_DOMAINS'] = ['unisannio.it', 'studenti.unisannio.it', 'example.com'] 
+# --- Configurazione per i Domini Email Permessi per la Registrazione ---
+app.config['ALLOWED_EMAIL_DOMAINS'] = ['unisannio.it', 'studenti.unisannio.it', 'example.com'] # <--- CAMBIA QUESTI DOMINI!
 
 # Inizializza SQLAlchemy e collegalo all'app
 db = SQLAlchemy() 
 db.init_app(app) 
 
-# Configurazione CORS per permettere richieste da frontend (cruciale per cookie di sessione)
+# Configurazione CORS (con supports_credentials=True, NECESSARIO per i cookie di sessione cross-origin)
 CORS(app, supports_credentials=True) 
 
 # --- Configurazione Flask-Login ---
 login_manager = LoginManager()
 login_manager.init_app(app)
-# La gestione del reindirizzamento per utenti non autorizzati è affidata a @login_manager.unauthorized_handler
 
 # Funzione richiesta da Flask-Login per caricare un utente dato il suo ID
 @login_manager.user_loader
@@ -78,10 +54,10 @@ def load_user(user_id):
 # Funzione per gestire l'accesso non autorizzato (richiesta da Flask-Login)
 @login_manager.unauthorized_handler
 def unauthorized():
-    # Se la richiesta è AJAX (API), restituiamo 401 JSON
+    # Se la richiesta è AJAX (API), restituisci 401 JSON
     if request.path.startswith('/api/'):
         return jsonify({"error": "Accesso non autorizzato. Effettua il login."}), 401
-    # Se la richiesta è una navigazione diretta del browser, reindirizza alla pagina di login del frontend
+    # Se la richiesta è una navigazione diretta del browser, reindirizza alla pagina di login
     return redirect(url_for('serve_login_page')) 
 
 # --- Configurazione AWS S3 ---
@@ -92,8 +68,8 @@ S3_SECRET = os.environ.get("AWS_SECRET_ACCESS_KEY")
 S3_REGION = os.environ.get("S3_REGION") 
 
 s3_client = None
-# Inizializza il client S3 solo se tutte le credenziali e il bucket sono disponibili
 if S3_KEY and S3_SECRET and S3_REGION and S3_BUCKET:
+    print("DEBUG: Variabili d'ambiente AWS S3 trovate. Tentativo di inizializzazione client S3.") 
     try:
         s3_client = boto3.client(
             's3',
@@ -101,11 +77,11 @@ if S3_KEY and S3_SECRET and S3_REGION and S3_BUCKET:
             aws_secret_access_key=S3_SECRET,
             region_name=S3_REGION
         )
+        print("DEBUG: Client S3 inizializzato con successo.") 
     except Exception as e:
-        print(f"Errore nell'inizializzazione del client S3: {e}")
+        print(f"ERRORE DEBUG: Errore nell'inizializzazione del client S3: {e}") 
 else:
-    # Questo messaggio verrà stampato nei log se le variabili non sono impostate
-    print("Variabili d'ambiente AWS S3 non impostate. Le operazioni S3 falliranno.")
+    print("ERRORE DEBUG: Variabili d'ambiente AWS S3 non impostate. Le operazioni S3 falliranno.") 
 
 # --- Validazione Tipo File ---
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'ppt', 'pptx'} 
@@ -114,7 +90,6 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # --- Definizione dei Modelli del Database ---
-# MODELLO USER
 class User(UserMixin, db.Model): 
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
@@ -135,7 +110,6 @@ class User(UserMixin, db.Model):
             "email": self.email
         }
 
-# Modello Dipartimento
 class Department(db.Model):
     __tablename__ = 'departments' 
     id = db.Column(db.Integer, primary_key=True)
@@ -144,7 +118,6 @@ class Department(db.Model):
     def to_dict(self):
         return {"id": self.id, "name": self.name}
 
-# Modello Corso di Laurea
 class DegreeProgram(db.Model):
     __tablename__ = 'degree_programs'
     id = db.Column(db.Integer, primary_key=True)
@@ -154,7 +127,6 @@ class DegreeProgram(db.Model):
     def to_dict(self):
         return {"id": self.id, "name": self.name, "department_id": self.department_id}
 
-# Modello Corso (Esame)
 class Course(db.Model):
     __tablename__ = 'courses'
     id = db.Column(db.Integer, primary_key=True)
@@ -170,7 +142,6 @@ class Course(db.Model):
             "degree_program_id": self.degree_program_id
         }
 
-# Modello Appunto
 class Note(db.Model):
     __tablename__ = 'notes'
     id = db.Column(db.Integer, primary_key=True)
@@ -194,10 +165,13 @@ class Note(db.Model):
 
 # --- Rotte per Servire i File del Frontend ---
 
-# Rotta per la homepage (index.html)
+# NUOVA LOGICA PER LA HOMEPAGE: Reindirizza al login se non autenticato
 @app.route('/')
-def serve_index():
-    return send_from_directory('.', 'index.html')
+def serve_home_or_login():
+    if current_user.is_authenticated:
+        return send_from_directory('.', 'index.html')
+    else:
+        return redirect(url_for('serve_login_page'))
 
 # Rotta per servire la pagina di login
 @app.route('/login.html')
@@ -210,6 +184,7 @@ def serve_register_page():
     return send_from_directory('.', 'register.html')
 
 # Rotta generica per servire tutti gli altri file statici (es. ding.html, style.css, script.js)
+# Questa rotta deve stare DOPO le rotte specifiche come /login.html e /register.html
 @app.route('/<path:filename>')
 def serve_static_files(filename):
     return send_from_directory('.', filename)
@@ -232,7 +207,7 @@ def register():
     allowed_domains = app.config.get('ALLOWED_EMAIL_DOMAINS', [])
     email_domain = email.split('@')[-1]
 
-    if allowed_domains and email_domain not in allowed_domains: # Controlla solo se la lista non è vuota
+    if allowed_domains and email_domain not in allowed_domains: 
         return jsonify({"error": f"Registrazione non consentita per il dominio {email_domain}. Sono ammessi solo domini: {', '.join(allowed_domains)}"}), 403
 
     if User.query.filter_by(username=username).first():
@@ -283,7 +258,6 @@ def get_departments():
     departments = Department.query.all()
     return jsonify([d.to_dict() for d in departments])
 
-# API per ottenere i corsi di laurea di un dipartimento
 @app.route('/api/departments/<int:department_id>/degree_programs', methods=['GET'])
 def get_degree_programs_by_department(department_id):
     degree_programs = DegreeProgram.query.filter_by(department_id=department_id).all()
@@ -291,7 +265,6 @@ def get_degree_programs_by_department(department_id):
         return jsonify({"message": "Nessun corso di laurea trovato per questo dipartimento"}), 404
     return jsonify([dp.to_dict() for dp in degree_programs])
 
-# API per ottenere gli esami di un corso di laurea per anno
 @app.route('/api/degree_programs/<int:degree_program_id>/courses/<int:year>', methods=['GET'])
 def get_courses_by_degree_and_year(degree_program_id, year):
     courses = Course.query.filter_by(degree_program_id=degree_program_id, year=year).all()
