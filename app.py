@@ -2,12 +2,14 @@ import os
 from flask import Flask, jsonify, request, send_from_directory, redirect, url_for, session, current_app 
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash 
-from werkzeug.utils import secure_filename # Importato correttamente
+from werkzeug.utils import secure_filename 
 from datetime import datetime
 from flask_cors import CORS 
 import boto3 
 from botocore.exceptions import NoCredentialsError, ClientError
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user 
+
+print("DEBUG: Avvio app.py") # <-- LOG DI DEBUG
 
 # Inizializza l'app Flask
 app = Flask(__name__, static_folder='.', static_url_path='/') 
@@ -22,6 +24,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'la_tua_chiave_segreta_iniziale_di_fallback_sicura')
 
 # --- Configurazione per il Dominio del Cookie di Sessione ---
+# Questo è CRUCIALE per i domini personalizzati e i sottodomini.
 # Imposta il dominio del cookie per includere tutti i sottodomini (nota il '.' iniziale)
 # CAMBIA QUESTO VALORE IN BASE AL DOMINIO CHE STAI EFFETTIVAMENTE USANDO PER ACCEDERE ALL'APP IN PRODUZIONE.
 # Se usi studentiunisannio1991.fly.dev: app.config['SESSION_COOKIE_DOMAIN'] = '.studentiunisannio1991.fly.dev'
@@ -65,6 +68,7 @@ S3_REGION = os.environ.get("S3_REGION")
 
 s3_client = None
 if S3_KEY and S3_SECRET and S3_REGION and S3_BUCKET:
+    print("DEBUG: Variabili d'ambiente AWS S3 trovate. Tentativo di inizializzazione client S3.") # <-- LOG DI DEBUG
     try:
         s3_client = boto3.client(
             's3',
@@ -72,10 +76,11 @@ if S3_KEY and S3_SECRET and S3_REGION and S3_BUCKET:
             aws_secret_access_key=S3_SECRET,
             region_name=S3_REGION
         )
+        print("DEBUG: Client S3 inizializzato con successo.") # <-- LOG DI DEBUG
     except Exception as e:
-        print(f"Errore nell'inizializzazione del client S3: {e}")
+        print(f"ERRORE DEBUG: Errore nell'inizializzazione del client S3: {e}") # <-- LOG DI DEBUG
 else:
-    print("Variabili d'ambiente AWS S3 non impostate. Le operazioni S3 falliranno.")
+    print("ERRORE DEBUG: Variabili d'ambiente AWS S3 non impostate. Le operazioni S3 falliranno.") # <-- LOG DI DEBUG
 
 # --- Validazione Tipo File ---
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'ppt', 'pptx'} 
