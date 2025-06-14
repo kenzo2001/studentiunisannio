@@ -4,27 +4,34 @@
 #
 
 app = 'studentiunisannio1991'
-primary_region = 'fra'
+primary_region = 'fra' # O la tua regione corretta (es. 'fra' per Francoforte)
 
 [build]
-# fly.toml
-app = "studentiunisannio1991" # Il nome della tua app su Fly.io (dovrebbe già essere qui)
-primary_region = "fra" # La regione della tua app (dovrebbe già essere qui)
-
-[build]
-  builder = "paketobuildpacks/builder-python" # Questo potrebbe essere diverso, controlla la tua riga [build] esistente
-  # Aggiungi questa sezione per passare DATABASE_URL al processo di build
+  builder = "paketobuildpacks/builder:base" # Usa il builder Paketo base
   [build.args]
     DATABASE_URL = "postgres://postgres:k8OAWsfTNiwoQ4n@polished-night-1030.flycast:5432"
+    # SOSTITUISCI L'INTERA STRINGA con quella ESATTA del tuo database PostgreSQL
+    # (inclusa la password che ti è stata data da flyctl postgres create)
+
+
+# SEZIONE: Variabili d'ambiente per l'applicazione
+[env]
+  PORT = "8080" # Imposta la porta per Gunicorn
+
+
+# SEZIONE: Definisce come Fly.io deve avviare i processi
+[processes]
+  web = "gunicorn --bind 0.0.0.0:$PORT app:app" # Processo web definito
 
 
 [http_service]
-  internal_port = 8080
+  internal_port = 8080 # Questa è la porta interna della VM
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
-  processes = ['app']
+  processes = ['web'] # Punta al processo 'web' definito
+
 
 [[vm]]
   memory = '1gb'
