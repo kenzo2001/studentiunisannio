@@ -26,8 +26,7 @@ primary_region = 'fra' # O la tua regione corretta (es. 'fra' per Francoforte)
   auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
-  processes = ['app'] # Assicurati che 'app' sia incluso qui, o usa 'web' se [processes] è definito
-
+  processes = ['web'] # <--- CAMBIA 'app' in 'web'
 
 [[vm]]
   memory = '1gb'
