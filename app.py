@@ -166,9 +166,28 @@ def get_status():
 # --- VECCHIE API (NON TOCCATE) ---
 # ... (tutte le altre tue rotte per dipartimenti, corsi, appunti, etc. rimangono qui invariate)
 
+# NUOVA ROTTA DA AGGIUNGERE PER CARICARE I CORSI
+@app.route('/api/degree_programs/<int:degree_program_id>/courses/<int:year>', methods=['GET'])
+def get_courses_by_year(degree_program_id, year):
+    """
+    Fornisce la lista dei corsi per un dato corso di laurea e anno.
+    """
+    # Cerca i corsi nel database filtrando per ID del corso di laurea e per anno.
+    courses = Course.query.filter_by(degree_program_id=degree_program_id, year=year).order_by(Course.name).all()
+
+    # Se non trova corsi, restituisce un messaggio che lo script può interpretare.
+    if not courses:
+        return jsonify({"message": "Nessun corso trovato per questo anno."}), 404
+
+    # Se trova i corsi, li converte in formato JSON e li invia.
+    return jsonify([course.to_dict() for course in courses]), 200
+
+
 # --- ROTTE PER SERVIRE FILE STATICI ---
 @app.route('/')
 def serve_home():
+# --- ROTTE PER SERVIRE FILE STATICI ---
+
     return send_from_directory('.', 'index.html')
 
 @app.route('/login.html')
