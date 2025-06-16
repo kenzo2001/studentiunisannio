@@ -7,7 +7,7 @@
 :root {
   --colore-primario: #2b6cb0;          /* Un blu professionale */
   --colore-primario-hover: #2c5282; /* Un blu più scuro per i link */
-  --colore-testo: #2d3748;            /* Un grigio scuro quasi nero */
+  --colore-testo: #ffffff;            /* Un grigio scuro quasi nero */
   --colore-testo-secondario: #718096; /* Un grigio più chiaro */
   --sfondo-chiaro: #f7fafc;             /* Un grigio molto leggero per sezioni alternate */
   --bordo-colore: #e2e8f0;              /* Colore per bordi e linee sottili */

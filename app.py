@@ -8,6 +8,10 @@ from flask_cors import CORS
 import boto3
 from botocore.exceptions import NoCredentialsError, ClientError
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from flask_pymongo import PyMongo
+from bson.objectid import ObjectId
+from app import mongo
+
 
 print("DEBUG: Avvio app.py")
 
@@ -25,6 +29,9 @@ else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///unisannio_appunti.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+
+app.config["MONGO_URI"] = os.environ.get("MONGO_URI")
+mongo = PyMongo(app)
 # Chiave segreta per le sessioni Flask (ESSENZIALE per sicurezza e mantenimento sessione)
 # Prende da variabile d'ambiente FLASK_SECRET_KEY su Fly.io, con un fallback per lo sviluppo locale.
 # DEVI IMPOSTARE FLASK_SECRET_KEY SU FLY.IO con una stringa lunga e casuale!
@@ -51,10 +58,26 @@ CORS(app, supports_credentials=True)
 # --- Configurazione Flask-Login ---
 login_manager = LoginManager()
 login_manager.init_app(app)
+if not mongo.db.users.find_one({"username": "admin"}):
+    print("INIT_DB: Aggiungendo utente 'admin' di esempio in MongoDB...")
+    admin_user = {
+        "username": "admin",
+        "email": "admin@example.com",
+        "password_hash": generate_password_hash("password")
+    }
+    mongo.db.users.insert_one(admin_user)
+    print("INIT_DB: Utente 'admin' aggiunto in MongoDB.")
+else:
+    print("INIT_DB: Utente 'admin' di esempio già presente in MongoDB.")
+
 
 # Funzione richiesta da Flask-Login per caricare un utente dato il suo ID
 @login_manager.user_loader
 def load_user(user_id):
+    user_data = mongo.db.users.find_one({"_id": ObjectId(user_id)})
+    if user_data:
+        return User(user_data)
+    return None
     return User.query.get(int(user_id))
 
 # Funzione per gestire l'accesso non autorizzato (richiesta da Flask-Login)
@@ -96,26 +119,19 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # --- Definizione dei Modelli del Database ---
-class User(UserMixin, db.Model):
-    __tablename__ = 'users'
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256), nullable=False)
+class User(UserMixin):
+    def __init__(self, user_data):
+        self.id = str(user_data.get('_id'))
+        self.username = user_data.get('username')
+        self.email = user_data.get('email')
+        self.password_hash = user_data.get('password_hash')
 
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
-    
     def to_dict(self):
         return {
             "id": self.id,
             "username": self.username,
             "email": self.email
         }
-
 class Department(db.Model):
     __tablename__ = 'departments'
     id = db.Column(db.Integer, primary_key=True)
@@ -177,14 +193,45 @@ def serve_home():
     return send_from_directory('.', 'index.html')
 
 # Lascia invariate le altre rotte per servire le pagine di login e registrazione
-@app.route('/login.html')
-def serve_login_page():
-    return send_from_directory('.', 'login.html')
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
 
-@app.route('/register.html')
-def serve_register_page():
-    return send_from_directory('.', 'register.html')
+    user_data = mongo.db.users.find_one({"username": username})
 
+    if user_data and check_password_hash(user_data['password_hash'], password):
+        user_obj = User(user_data)
+        login_user(user_obj)
+        return jsonify({"message": "Login avvenuto con successo!", "user": user_obj.to_dict()}), 200
+    else:
+        return jsonify({"error": "Username o password non validi"}), 401
+
+@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    username = data.get('username')
+    email = data.get('email')
+    password = data.get('password')
+
+    if not all([username, email, password]):
+        return jsonify({"error": "Username, email e password sono obbligatori"}), 400
+
+    # Controlla se l'utente esiste già in MongoDB
+    if mongo.db.users.find_one({"username": username}):
+        return jsonify({"error": "Username già registrato"}), 409
+    if mongo.db.users.find_one({"email": email}):
+        return jsonify({"error": "Email già registrata"}), 409
+
+    new_user = {
+        "username": username,
+        "email": email,
+        "password_hash": generate_password_hash(password)
+    }
+    mongo.db.users.insert_one(new_user)
+
+    return jsonify({"message": "Registrazione avvenuta con successo!"}), 201
 
 # Rotta generica per servire tutti gli altri file statici (es. ding.html, style.css, script.js)
 # Questa rotta deve stare DOPO le rotte specifiche come /login.html e /register.html
