@@ -1,39 +1,34 @@
-# fly.toml app configuration file generated for studentiunisannio1991 on 2025-06-10T23:26:46+02:00
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
-
+# fly.toml app configuration file
+# App Name e Regione Principale
 app = 'studentiunisannio1991'
-primary_region = 'fra' # O la tua regione corretta (es. 'fra' per Francoforte)
+primary_region = 'fra'
 
+# Sezione di Build. Specifica solo il builder, nient'altro.
 [build]
-  builder = "paketobuildpacks/builder:base" # Usa il builder Paketo base
-  # La sezione [build.args] non è necessaria per le variabili d'ambiente
-  # runtime, verranno caricate dai segreti di Fly.io. Puoi rimuoverla.
+  builder = "paketobuildpacks/builder:base"
 
-# SEZIONE: Variabili d'ambiente per l'applicazione
-[env]
-  PORT = "8080" # Imposta la porta per Gunicorn
-
-# --- NUOVA SEZIONE: COMANDO DI DEPLOY ---
-# Questa sezione definisce un comando che viene eseguito UNA SOLA VOLTA
-# ogni volta che fai un nuovo deploy, prima che l'app venga avviata.
-# È il posto perfetto per inizializzare o migrare il database.
+# Sezione di Deploy. Questo comando viene eseguito ad ogni deploy.
 [deploy]
   release_command = "python init_db.py"
 
-# SEZIONE: Definisce come Fly.io deve avviare i processi
-[processes]
-  web = "gunicorn --bind 0.0.0.0:$PORT app:app" # Processo web definito
+# Variabili d'ambiente per l'app in esecuzione.
+[env]
+  PORT = "8080"
 
+# Configurazione del servizio HTTP.
 [http_service]
-  internal_port = 8080 # Questa è la porta interna della VM
+  internal_port = 8080
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
-  processes = ['web'] # Punta al processo 'web' definito
+  processes = ['web']
 
+# Definizione dei processi che l'app può eseguire.
+[processes]
+  web = "gunicorn --bind 0.0.0.0:$PORT app:app"
+
+# Configurazione della macchina virtuale.
 [[vm]]
   memory = '1gb'
   cpu_kind = 'shared'
