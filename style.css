@@ -518,4 +518,20 @@ footer a:hover {
 .main-content-box h2 {
     margin-bottom: 1.5em;
 }
+/* Stile migliorato per l'area utente */
+#navbar-user-area #user-status {
+    color: var(--colore-bianco);
+    font-size: 0.9em;
+    font-weight: 600;
+    padding: 5px 10px;
+    background-color: rgba(0, 0, 0, 0.15);
+    border-radius: var(--border-radius);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    line-height: 1.5;
+}
+
+/* Nasconde lo span se è vuoto (quando l'utente non è loggato) */
+#navbar-user-area #user-status:empty {
+    display: none;
+}
 }
