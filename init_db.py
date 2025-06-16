@@ -1,7 +1,6 @@
-# init_db.py
 import os
 # Importa app e db (dall'istanza globale in app.py) e i modelli del database
-from app import app, db, Department, DegreeProgram, Course, User 
+from app import app, db, Department, DegreeProgram, Course, User
 from werkzeug.security import generate_password_hash # Per hashare la password di un utente admin di prova
 
 # Questo script è pensato per essere eseguito SOLO DURANTE IL BUILD O L'INIZIALIZZAZIONE.
@@ -14,30 +13,30 @@ def initialize_database():
     # perché SQLAlchemy ha bisogno del contesto dell'applicazione Flask.
     with app.app_context():
         # LOG: Mostra l'URL del database che lo script sta tentando di usare
-        print(f"INIT_DB: URL del database in uso: {app.config['SQLALCHEMY_DATABASE_URI']}") 
+        print(f"INIT_DB: URL del database in uso: {app.config['SQLALCHEMY_DATABASE_URI']}")
 
         try:
             # Crea tutte le tabelle definite dai modelli (User, Department, DegreeProgram, Course, Note)
-            db.create_all() 
+            db.create_all()
             print("INIT_DB: Database e tabelle create (o già esistenti) in PostgreSQL.") # LOG: Successo creazione tabelle
         except Exception as e:
             # LOG: Cattura e stampa qualsiasi errore durante la creazione delle tabelle
-            print(f"ERRORE INIT_DB: Errore durante la creazione delle tabelle: {e}") 
+            print(f"ERRORE INIT_DB: Errore durante la creazione delle tabelle: {e}")
             # Rilancia l'eccezione per far fallire il build, indicando il problema
-            raise 
+            raise
 
         # --- Popolamento Dati di Esempio (solo se il DB è vuoto) ---
         # Questo controllo `if not Department.query.first():` è cruciale per evitare duplicati
         # se lo script viene eseguito più volte su un database persistente.
         try:
-            if not Department.query.first(): 
+            if not Department.query.first():
                 print("INIT_DB: Popolando il database con dati di esempio (Dipartimenti, Corsi, Esami)...") # LOG: Inizio popolamento
 
                 # Dipartimenti
                 ding = Department(name='DING')
                 dst = Department(name='DST')
                 demm = Department(name='DEMM')
-                db.session.add_all([ding, dst, demm]) 
+                db.session.add_all([ding, dst, demm])
                 db.session.commit() # Esegui il commit per salvare i dipartimenti e ottenere i loro ID
                 print("INIT_DB: Dipartimenti aggiunti.") # LOG
 
@@ -78,7 +77,7 @@ def initialize_database():
             if not User.query.filter_by(username='admin').first():
                 print("INIT_DB: Aggiungendo utente 'admin' di esempio...") # LOG
                 admin_user = User(username='admin', email='admin@example.com')
-                admin_user.set_password('password') 
+                admin_user.set_password('password')
                 db.session.add(admin_user)
                 db.session.commit()
                 print("INIT_DB: Utente 'admin' aggiunto.") # LOG
@@ -86,9 +85,9 @@ def initialize_database():
                 print("INIT_DB: Utente 'admin' di esempio già presente.") # LOG
         except Exception as e:
             # LOG: Cattura e stampa qualsiasi errore durante il popolamento dei dati
-            print(f"ERRORE INIT_DB: Errore durante il popolamento dei dati: {e}") 
+            print(f"ERRORE INIT_DB: Errore durante il popolamento dei dati: {e}")
             # Rilancia l'eccezione per far fallire il build, indicando il problema
-            raise 
+            raise
 
 # Questo file viene eseguito direttamente.
 if __name__ == '__main__':
