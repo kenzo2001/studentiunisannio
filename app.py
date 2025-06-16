@@ -186,20 +186,42 @@ def get_courses_by_year(degree_program_id, year):
 
 @app.route('/api/departments', methods=['GET'])
 def get_departments():
+
+
+  
     """
     Fornisce la lista di tutti i dipartimenti presenti nel database.
     """
     try:
         # Interroga il database per ottenere tutti i record dalla tabella Department
-        all_departments = Department.query.order_by(Department.name).all()
+        all_departments = Course.query.order_by(Course.name).all()
         
         # Converte la lista di oggetti in un formato JSON e la restituisce
-        return jsonify([department.to_dict() for department in all_departments]), 200
+        return jsonify([Course.to_dict() for department in all_departments]), 200
     except Exception as e:
         # In caso di errore, lo stampa sul log del server e restituisce un errore generico
         print(f"Errore durante il recupero dei dipartimenti: {e}")
         return jsonify({"error": "Errore interno nel recupero dei dati"}), 500
 # --- ROTTE PER SERVIRE FILE STATICI ---
+
+
+@app.route('/api/departments/<int:department_id>/degree_programs', methods=['GET'])
+def get_degree_programs_by_department(department_id):
+    """
+    Fornisce la lista dei corsi di laurea per un dato dipartimento.
+    """
+    # Cerca il dipartimento per l'ID fornito, se non lo trova restituisce errore 404.
+    department = Department.query.get_or_404(department_id)
+    
+    # Trova tutti i corsi di laurea associati a quel dipartimento.
+    degree_programs = DegreeProgram.query.filter_by(department_id=department.id).order_by(DegreeProgram.name).all()
+    
+    # Se non ce ne sono, restituisce un messaggio.
+    if not degree_programs:
+        return jsonify({"message": "Nessun corso di laurea trovato per questo dipartimento."}), 404
+        
+    # Restituisce la lista in formato JSON.
+    return jsonify([program.to_dict() for program in degree_programs]), 200
 @app.route('/')
 def serve_home():
 # --- ROTTE PER SERVIRE FILE STATICI ---
