@@ -1,5 +1,5 @@
 import os
-from app import app, db, mongo, Department, DegreeProgram, Course
+from app import app, db, mongo, Department, DegreeProgram, Course, Note # Aggiunto Note
 from werkzeug.security import generate_password_hash
 
 def initialize_database():
@@ -16,16 +16,10 @@ def initialize_database():
         # 2. Popolamento Dipartimenti e Corsi di Laurea (se mancano)
         if not Department.query.first():
             print("INIT_DB: Popolando Dipartimenti e Corsi di Laurea...")
-            
-            # Dipartimenti
-            ding = Department(name='DING')
-            dst = Department(name='DST')
-            demm = Department(name='DEMM')
+            # (Codice completo per Dipartimenti e Corsi di Laurea)
+            ding = Department(name='DING'); dst = Department(name='DST'); demm = Department(name='DEMM')
             db.session.add_all([ding, dst, demm])
             db.session.commit()
-            print("INIT_DB: Dipartimenti aggiunti.")
-
-            # Corsi di Laurea
             db.session.add_all([
                 DegreeProgram(name='Ingegneria Energetica', department=ding),
                 DegreeProgram(name='Ingegneria Civile', department=ding),
@@ -37,18 +31,24 @@ def initialize_database():
                 DegreeProgram(name='Management', department=demm)
             ])
             db.session.commit()
-            print("INIT_DB: Corsi di Laurea aggiunti.")
+            print("INIT_DB: Dipartimenti e Corsi di Laurea aggiunti.")
         else:
             print("INIT_DB: Dipartimenti e Corsi di Laurea già presenti.")
 
         # 3. FORZIAMO IL POPOLAMENTO DEGLI ESAMI
         print("INIT_DB: ESEGUENDO POPOLAMENTO FORZATO DEGLI ESAMI...")
         try:
-            # Per sicurezza, prima cancelliamo tutti i corsi esistenti per evitare duplicati
-            num_deleted = db.session.query(Course).delete()
+            # NUOVO: Cancelliamo prima gli Appunti (Note) per risolvere l'errore di ForeignKeyViolation
+            num_notes_deleted = db.session.query(Note).delete()
+            if num_notes_deleted > 0:
+                 print(f"INIT_DB: Cancellati {num_notes_deleted} appunti esistenti per pulizia.")
+
+            # Ora cancelliamo i Corsi
+            num_courses_deleted = db.session.query(Course).delete()
+            if num_courses_deleted > 0:
+                print(f"INIT_DB: Cancellati {num_courses_deleted} corsi esistenti per pulizia.")
+            
             db.session.commit()
-            if num_deleted > 0:
-                print(f"INIT_DB: Cancellati {num_deleted} corsi esistenti per pulizia.")
 
             # Ora recuperiamo i corsi di laurea e inseriamo quelli nuovi
             ing_energetica = DegreeProgram.query.filter_by(name='Ingegneria Energetica').first()
@@ -87,4 +87,3 @@ def initialize_database():
 
 if __name__ == '__main__':
     initialize_database()
-    
