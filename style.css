@@ -525,26 +525,19 @@ footer a:hover {
 
 /* Usiamo un selettore molto specifico e !important 
    per forzare lo stile corretto e ignorare ogni altra regola. */
-
+/* ====================================================== */
+/* REGOLA FINALE E DEFINITIVA PER IL MESSAGGIO UTENTE */
+/* ====================================================== */
 div#navbar-user-area > span#user-status {
-    
-    /* Colore del testo */
     color: #ffffff !important;
-
-    /* Sfondo e bordo */
     background: none !important;
     border: none !important;
-
-    /* Stile del font */
     font-weight: 600 !important;
     font-size: 0.9em !important;
-    
-    /* Allineamento e spaziatura */
     padding: 5px 8px !important;
     margin: 0 !important;
 }
 
-/* Nasconde l'elemento quando non c'è testo (utente non loggato) */
 div#navbar-user-area > span#user-status:empty {
     display: none !important;
 }
