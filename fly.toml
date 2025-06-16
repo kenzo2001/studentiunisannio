@@ -1,22 +1,37 @@
+# fly.toml app configuration file generated for studentiunisannio1991 on 2025-06-10T23:26:46+02:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
 app = 'studentiunisannio1991'
-primary_region = 'fra'
+primary_region = 'fra' # O la tua regione corretta (es. 'fra' per Francoforte)
 
 [build]
   builder = "paketobuildpacks/builder:base" # Usa il builder Paketo base
- 
-[env]
-  PORT = "8080"
+  [build.args] # <-- QUESTA SEZIONE DEVE ESSERE QUI E ATTIVA
+    DATABASE_URL = "postgresql://postgres:k8OAWsfTNiwoQ4n@polished-night-1030.flycast:5432"
+    # SOSTITUISCI L'INTERA STRINGA con quella ESATTA del tuo database PostgreSQL
+    # (inclusa la password che ti è stata data da flyctl postgres create)
 
+
+# SEZIONE: Variabili d'ambiente per l'applicazione
+[env]
+  PORT = "8080" # Imposta la porta per Gunicorn
+
+
+# SEZIONE: Definisce come Fly.io deve avviare i processi
 [processes]
-  web = "gunicorn --bind 0.0.0.0:$PORT app:app"
+  web = "gunicorn --bind 0.0.0.0:$PORT app:app" # Processo web definito
+
 
 [http_service]
-  internal_port = 8080
+  internal_port = 8080 # Questa è la porta interna della VM
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
-  processes = ['web'] 
+  processes = ['web'] # Punta al processo 'web' definito
+
 
 [[vm]]
   memory = '1gb'
