@@ -10,17 +10,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- FUNZIONI GLOBALI ESEGUITE SU TUTTE LE PAGINE ---
 
-    // 1. Attivazione Tab e Colore Header/Navbar
     function activateMainTabAndHeader() {
         const navLinks = document.querySelectorAll('.navbar a');
         const header = document.querySelector('header');
         const navbar = document.querySelector('.navbar');
 
-        // Resetta classi header e navbar
         header.className = '';
         navbar.className = 'navbar';
-
-        // Resetta classi link
         navLinks.forEach(link => {
             if (link.id) {
                 const tabName = link.id.replace('nav-', '');
@@ -33,14 +29,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let activeTab = '';
         if (isIngPage || isAuthPage) {
-            // Le pagine di ingegneria e autenticazione attivano il tab DING
             activeTab = 'ding';
             header.classList.add('header-ingegneria');
             navbar.classList.add('navbar-ingegneria');
         } else if (currentPage === '' || currentPage === 'index.html') {
             activeTab = 'home';
         } else {
-            // Trova il link corrispondente alla pagina corrente
             const foundLink = Array.from(navLinks).find(l => l.href.endsWith(currentPage));
             if (foundLink && foundLink.id) {
                 activeTab = foundLink.id.replace('nav-', '');
@@ -49,19 +43,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (activeTab) {
             const activeLink = document.getElementById(`nav-${activeTab}`);
-            if (activeLink) {
-                activeLink.classList.add(`active-${activeTab}`);
-            }
-            if (!header.classList.contains('header-ingegneria')) {
-                 header.classList.add(`header-${activeTab}`);
-            }
-             if (!navbar.classList.contains('navbar-ingegneria')) {
-                navbar.classList.add(`navbar-${activeTab}`);
-            }
+            if (activeLink) activeLink.classList.add(`active-${activeTab}`);
+            if (!header.classList.contains('header-ingegneria')) header.classList.add(`header-${activeTab}`);
+            if (!navbar.classList.contains('navbar-ingegneria')) navbar.classList.add(`navbar-${activeTab}`);
         }
     }
 
-    // 2. Aggiornamento UI utente (Login/Logout)
     async function updateUserStatusNavbar() {
         const userStatusElement = document.getElementById('user-status');
         const loginLink = document.getElementById('nav-login');
@@ -69,7 +56,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const logoutLink = document.getElementById('nav-logout');
         const uploadNoteLink = document.getElementById('nav-upload');
 
-        // Nascondi tutto di default per evitare flash di contenuto errato
         if (userStatusElement) userStatusElement.style.display = 'none';
         if (loginLink) loginLink.style.display = 'none';
         if (registerLink) registerLink.style.display = 'none';
@@ -79,9 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const response = await fetch(`${API_BASE_URL}/api/status`);
             const data = await response.json();
-
             if (data.logged_in) {
-                // Utente Loggato
                 if (userStatusElement) {
                     userStatusElement.textContent = `Benvenuto, ${data.user.username}!`;
                     userStatusElement.style.display = 'inline-block';
@@ -89,79 +73,92 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (logoutLink) logoutLink.style.display = 'inline-block';
                 if (uploadNoteLink) uploadNoteLink.style.display = 'inline-block';
             } else {
-                // Utente non Loggato
                 if (loginLink) loginLink.style.display = 'inline-block';
                 if (registerLink) registerLink.style.display = 'inline-block';
             }
         } catch (error) {
-            console.error('Errore nel controllo stato login. Assicurarsi che il backend sia attivo.', error);
-            // Fallback: mostra lo stato di logout in caso di errore di rete
+            console.error('Errore nel controllo stato login:', error);
             if (loginLink) loginLink.style.display = 'inline-block';
             if (registerLink) registerLink.style.display = 'inline-block';
         }
     }
 
-    // ESECUZIONE FUNZIONI GLOBALI AL CARICAMENTO DELLA PAGINA
     activateMainTabAndHeader();
     updateUserStatusNavbar();
 
-    // Gestione click sul link di Logout
     const logoutLink = document.getElementById('nav-logout');
     if (logoutLink) {
         logoutLink.addEventListener('click', async function(e) {
             e.preventDefault();
             try {
                 await fetch(`${API_BASE_URL}/api/logout`, { method: 'POST' });
-                window.location.href = 'login.html'; // Reindirizza al login dopo il logout
+                window.location.href = 'login.html';
             } catch (error) {
                 console.error('Errore durante il logout:', error);
-                alert('Errore di rete durante il logout.');
             }
         });
     }
 
     // --- LOGICA SPECIFICA PER PAGINE ---
 
-    // Funzione per aprire i tab degli anni nelle pagine di Ingegneria
-    window.openYearTab = function(evt, tabName) {
-        let i, tabcontent, tablinks;
-        tabcontent = document.getElementsByClassName("year-tabcontent");
-        for (i = 0; i < tabcontent.length; i++) {
-            tabcontent[i].style.display = "none";
-            tabcontent[i].classList.remove("active");
-        }
-        tablinks = document.getElementsByClassName("year-tabs")[0].getElementsByTagName("button");
-        for (i = 0; i < tablinks.length; i++) {
-            tablinks[i].classList.remove("active");
-        }
-        const currentContentDiv = document.getElementById(tabName);
-        currentContentDiv.style.display = "block";
-        currentContentDiv.classList.add("active");
-        evt.currentTarget.classList.add("active");
+    function loadNotesForCourse(courseId, containerElement) {
+        containerElement.innerHTML = `<p style="color: black;">Caricamento appunti...</p>`;
+        fetch(`${API_BASE_URL}/api/courses/${courseId}/notes`)
+            .then(response => {
+                if (response.status === 404) return { message: "Nessun appunto trovato per questo corso." };
+                if (!response.ok) throw new Error(`Errore HTTP: ${response.status}`);
+                return response.json();
+            })
+            .then(notesData => {
+                let notesHtml = `<div class="course-notes-list">`;
+                if (Array.isArray(notesData) && notesData.length > 0) {
+                    notesData.forEach(note => {
+                        const downloadApiUrl = `${API_BASE_URL}/api/notes/${note.id}/download`;
+                        notesHtml += `
+                            <div class="note-item">
+                                <h4>${note.title}</h4>
+                                <p>${note.description || 'Nessuna descrizione.'}</p>
+                                <p>Caricato da: ${note.uploader_name || 'Anonimo'} il ${new Date(note.upload_date).toLocaleDateString()}</p>
+                                <a href="${downloadApiUrl}" class="download-note-btn">Scarica Appunto</a>
+                            </div>`;
+                    });
+                } else {
+                    notesHtml += `<p style="color: black;">${notesData.message || 'Nessun appunto disponibile.'}</p>`;
+                }
+                notesHtml += `</div>`;
+                containerElement.innerHTML = notesHtml;
 
-        // Mappa per caricare i corsi corretti
-        const tabInfoMapping = {
-            'primoAnnoEnergetica': { degree_name: 'energetica', year: 1 }, 'secondoAnnoEnergetica': { degree_name: 'energetica', year: 2 }, 'terzoAnnoEnergetica': { degree_name: 'energetica', year: 3 },
-            'primoAnnoCivile': { degree_name: 'civile', year: 1 }, 'secondoAnnoCivile': { degree_name: 'civile', year: 2 }, 'terzoAnnoCivile': { degree_name: 'civile', year: 3 },
-            'primoAnnoInformatica': { degree_name: 'informatica', year: 1 }, 'secondoAnnoInformatica': { degree_name: 'informatica', year: 2 }, 'terzoAnnoInformatica': { degree_name: 'informatica', year: 3 },
-            'primoAnnoBiomedica': { degree_name: 'biomedica', year: 1 }, 'secondoAnnoBiomedica': { degree_name: 'biomedica', year: 2 }, 'terzoAnnoBiomedica': { degree_name: 'biomedica', year: 3 }
-        };
-
-        const info = tabInfoMapping[tabName];
-        if (info) {
-            const degreeProgramId = degreeProgramIds[info.degree_name];
-            if (degreeProgramId) {
-                loadCoursesForYear(degreeProgramId, info.year, currentContentDiv, info.degree_name);
-            }
-        }
+                containerElement.querySelectorAll('.download-note-btn').forEach(button => {
+                    button.addEventListener('click', function(event) {
+                        event.preventDefault();
+                        const apiUrl = this.href;
+                        fetch(apiUrl)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.download_url) {
+                                    window.open(data.download_url, '_blank');
+                                } else {
+                                    alert('Impossibile ottenere il link per il download.');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Errore recupero link download:', error);
+                                alert('Si è verificato un errore di rete.');
+                            });
+                    });
+                });
+            })
+            .catch(error => {
+                console.error('Errore caricamento appunti:', error);
+                containerElement.innerHTML = `<p style="color: black;">Errore nel caricamento degli appunti.</p>`;
+            });
     }
 
-    // Funzione per caricare i corsi di un anno specifico
     function loadCoursesForYear(degreeProgramId, year, container, degreeName) {
         container.innerHTML = `<h3 style="color: black;">Caricamento corsi ${year}° Anno per Ingegneria ${degreeName}...</h3>`;
         fetch(`${API_BASE_URL}/api/degree_programs/${degreeProgramId}/courses/${year}`)
             .then(response => {
-                if (!response.ok) throw new Error(`Errore HTTP: ${response.status}`);
+                if (!response.ok) return [];
                 return response.json();
             })
             .then(coursesData => {
@@ -196,57 +193,52 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             })
             .catch(error => {
-                console.error('Errore nel caricamento dei corsi:', error);
+                console.error('Errore caricamento corsi:', error);
                 container.innerHTML = `<h3 style="color: black;">Errore nel caricamento dei corsi.</h3>`;
             });
     }
 
-    // Funzione per caricare gli appunti di un corso
-    function loadNotesForCourse(courseId, containerElement) {
-        containerElement.innerHTML = `<p style="color: black;">Caricamento appunti...</p>`;
-        fetch(`${API_BASE_URL}/api/courses/${courseId}/notes`)
-            .then(response => {
-                 if (response.status === 404) return { message: "Nessun appunto trovato per questo corso." };
-                 if (!response.ok) throw new Error(`Errore HTTP: ${response.status}`);
-                 return response.json();
-            })
-            .then(notesData => {
-                let notesHtml = `<div class="course-notes-list">`;
-                if (Array.isArray(notesData) && notesData.length > 0) {
-                    notesData.forEach(note => {
-                        const downloadApiUrl = `${API_BASE_URL}/api/notes/${note.id}/download`;
-                        notesHtml += `
-                            <div class="note-item">
-                                <h4>${note.title}</h4>
-                                <p>${note.description || 'Nessuna descrizione.'}</p>
-                                <p>Caricato da: ${note.uploader_name || 'Anonimo'} il ${new Date(note.upload_date).toLocaleDateString()}</p>
-                                <a href="${downloadApiUrl}" class="download-note-btn" target="_blank">Scarica Appunto</a>
-                            </div>`;
-                    });
-                } else {
-                    notesHtml += `<p style="color: black;">${notesData.message || 'Nessun appunto disponibile.'}</p>`;
-                }
-                notesHtml += `</div>`;
-                containerElement.innerHTML = notesHtml;
-            })
-            .catch(error => {
-                console.error('Errore nel caricamento degli appunti:', error);
-                containerElement.innerHTML = `<p style="color: black;">Errore nel caricamento degli appunti.</p>`;
-            });
+    window.openYearTab = function(evt, tabName) {
+        let i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("year-tabcontent");
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+            tabcontent[i].classList.remove("active");
+        }
+        tablinks = document.getElementsByClassName("year-tabs")[0].getElementsByTagName("button");
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].classList.remove("active");
+        }
+        const currentContentDiv = document.getElementById(tabName);
+        currentContentDiv.style.display = "block";
+        currentContentDiv.classList.add("active");
+        evt.currentTarget.classList.add("active");
+
+        const tabInfoMapping = {
+            'primoAnnoEnergetica': { degree_name: 'energetica', year: 1 },'secondoAnnoEnergetica': { degree_name: 'energetica', year: 2 },'terzoAnnoEnergetica': { degree_name: 'energetica', year: 3 },
+            'primoAnnoCivile': { degree_name: 'civile', year: 1 },'secondoAnnoCivile': { degree_name: 'civile', year: 2 },'terzoAnnoCivile': { degree_name: 'civile', year: 3 },
+            'primoAnnoInformatica': { degree_name: 'informatica', year: 1 },'secondoAnnoInformatica': { degree_name: 'informatica', year: 2 },'terzoAnnoInformatica': { degree_name: 'informatica', year: 3 },
+            'primoAnnoBiomedica': { degree_name: 'biomedica', year: 1 },'secondoAnnoBiomedica': { degree_name: 'biomedica', year: 2 },'terzoAnnoBiomedica': { degree_name: 'biomedica', year: 3 }
+        };
+
+        const info = tabInfoMapping[tabName];
+        if (info) {
+            const degreeProgramId = degreeProgramIds[info.degree_name];
+            if (degreeProgramId) {
+                loadCoursesForYear(degreeProgramId, info.year, currentContentDiv, info.degree_name);
+            }
+        }
     }
 
-    // Attiva il primo tab degli anni se siamo in una pagina di ingegneria
     if (currentPage.startsWith('ing_') && document.querySelector('.year-tabs button')) {
         document.querySelector('.year-tabs button').click();
     }
 
-    // Inizializzazione per le pagine di Autenticazione e Upload
     if (['upload_note.html', 'login.html', 'register.html'].includes(currentPage)) {
         setupAuthAndUploadPages();
     }
 
     function setupAuthAndUploadPages() {
-        // Logica per upload_note.html
         if (currentPage === 'upload_note.html') {
             const uploadForm = document.getElementById('uploadNoteForm');
             const messageDiv = document.getElementById('upload-message');
@@ -254,22 +246,75 @@ document.addEventListener('DOMContentLoaded', function() {
             const degreeProgramSelect = document.getElementById('degreeProgramSelect');
             const courseSelect = document.getElementById('courseSelect');
 
-            async function loadDepartments() { /* Logica per caricare dipartimenti */ }
-            async function loadDegreePrograms(departmentId) { /* Logica per caricare corsi di laurea */ }
-            async function loadCourses(degreeProgramId) { /* Logica per caricare materie */ }
+            const loadDepartments = async () => {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/departments`);
+                    const departments = await response.json();
+                    departmentSelect.innerHTML = '<option value="">Seleziona Dipartimento</option>';
+                    departments.forEach(dept => {
+                        departmentSelect.innerHTML += `<option value="${dept.id}">${dept.name}</option>`;
+                    });
+                } catch (err) { console.error("Errore caricamento dipartimenti", err); }
+            };
+
+            const loadDegreePrograms = async (departmentId) => {
+                if (!departmentId) return;
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/departments/${departmentId}/degree_programs`);
+                    const programs = await response.json();
+                    degreeProgramSelect.innerHTML = '<option value="">Seleziona Corso di Laurea</option>';
+                    programs.forEach(p => {
+                        degreeProgramSelect.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+                    });
+                    degreeProgramSelect.disabled = false;
+                } catch(err) { console.error("Errore caricamento corsi di laurea", err); }
+            };
+
+             const loadCourses = async (degreeProgramId) => {
+                if (!degreeProgramId) return;
+                 try {
+                    let allCourses = [];
+                    for (let year = 1; year <= 3; year++) {
+                        const response = await fetch(`${API_BASE_URL}/api/degree_programs/${degreeProgramId}/courses/${year}`);
+                        if (response.ok) {
+                            allCourses = allCourses.concat(await response.json());
+                        }
+                    }
+                    courseSelect.innerHTML = '<option value="">Seleziona Esame/Materia</option>';
+                    allCourses.sort((a,b) => a.name.localeCompare(b.name)).forEach(c => {
+                         courseSelect.innerHTML += `<option value="${c.id}">${c.name} (${c.year}° Anno)</option>`;
+                    });
+                    courseSelect.disabled = false;
+                 } catch(err) { console.error("Errore caricamento esami", err); }
+            };
 
             departmentSelect.addEventListener('change', (e) => loadDegreePrograms(e.target.value));
             degreeProgramSelect.addEventListener('change', (e) => loadCourses(e.target.value));
             
             uploadForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
-                // ... logica per il submit del form di upload ...
+                messageDiv.textContent = 'Caricamento in corso...';
+                const formData = new FormData(this);
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/upload_note`, { method: 'POST', body: formData });
+                    const result = await response.json();
+                    if (response.ok) {
+                        messageDiv.textContent = 'Appunto caricato con successo!';
+                        messageDiv.className = 'success';
+                        uploadForm.reset();
+                    } else {
+                        messageDiv.textContent = `Errore: ${result.error || 'Qualcosa è andato storto'}`;
+                        messageDiv.className = 'error';
+                    }
+                } catch (err) {
+                     messageDiv.textContent = `Errore di rete: ${err.message}`;
+                     messageDiv.className = 'error';
+                }
             });
 
             loadDepartments();
         }
 
-        // Logica per login.html
         if (currentPage === 'login.html') {
             const loginForm = document.getElementById('loginForm');
             const messageDiv = document.getElementById('login-message');
@@ -298,13 +343,42 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // Logica per register.html
         if (currentPage === 'register.html') {
             const registerForm = document.getElementById('registerForm');
             const messageDiv = document.getElementById('register-message');
             registerForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
-                // ... logica per il submit del form di registrazione ...
+                messageDiv.textContent = 'Registrazione in corso...';
+                const username = e.target.username.value;
+                const email = e.target.email.value;
+                const password = e.target.password.value;
+                const confirmPassword = e.target.confirm_password.value;
+
+                if (password !== confirmPassword) {
+                    messageDiv.textContent = 'Le password non corrispondono.';
+                    messageDiv.className = 'error';
+                    return;
+                }
+
+                 try {
+                    const response = await fetch(`${API_BASE_URL}/api/register`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, email, password })
+                    });
+                    const result = await response.json();
+                    if (response.ok) {
+                         messageDiv.textContent = 'Registrazione avvenuta con successo! Puoi effettuare il login.';
+                         messageDiv.className = 'success';
+                         registerForm.reset();
+                    } else {
+                        messageDiv.textContent = `Errore: ${result.error || 'Registrazione fallita'}`;
+                        messageDiv.className = 'error';
+                    }
+                } catch (error) {
+                    messageDiv.textContent = `Errore di rete: ${error.message}`;
+                    messageDiv.className = 'error';
+                }
             });
         }
     }
