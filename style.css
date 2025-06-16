@@ -521,7 +521,7 @@ footer a:hover {
 /* Stile per il messaggio di benvenuto utente nella navbar */
 #navbar-user-area #user-status {
     background-color: #ffffff;             /* SFONDO BIANCO */
-    color: #2d3748;                       /* TESTO SCURO (lo stesso dei titoli) */
+    color: #ffffff;                       /* TESTO SCURO (lo stesso dei titoli) */
     font-size: 0.9em;
     font-weight: 600;
     padding: 5px 10px;
