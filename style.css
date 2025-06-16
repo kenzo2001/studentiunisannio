@@ -427,4 +427,36 @@ footer a:hover {
     width: auto; 
     text-align: left; 
   }
+
+
+  /* Stili per l'area utente nella navbar */
+#navbar-user-area {
+    margin-left: auto; /* Sposta l'area utente tutta a destra */
+    display: flex;
+    align-items: center;
+    gap: 15px; /* Spazio tra gli elementi */
+    padding: 5px 15px;
+    background-color: rgba(0, 0, 0, 0.2); /* Sfondo leggermente diverso per farlo risaltare */
+    border-radius: var(--border-radius);
+    margin-right: 10px; /* Un po' di margine dal bordo destro */
+}
+
+#navbar-user-area a {
+    color: var(--colore-bianco);
+    text-decoration: none;
+    font-size: 0.9em;
+    padding: 5px 8px;
+    border-radius: var(--border-radius);
+    transition: background-color 0.3s ease;
+}
+
+#navbar-user-area a:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+#navbar-user-area #user-status {
+    color: var(--colore-bianco);
+    font-weight: bold;
+    font-size: 0.9em;
+}
 }

@@ -1,51 +1,51 @@
 document.addEventListener('DOMContentLoaded', function() {
     const currentPage = window.location.pathname.split('/').pop();
     const navLinks = document.querySelectorAll('.navbar a');
-    const header = document.querySelector('header'); 
+    const header = document.querySelector('header');
 
     // URL base per le API del backend (Fly.io)
     // Sostituisci con l'URL della tua app Fly.io o il tuo dominio personalizzato
-    const API_BASE_URL = 'https://studentiunisannio.it/api'; // Se il tuo dominio funziona già
+    const API_BASE_URL = 'https://studentiunisannio.it'; // Se il tuo dominio funziona già
 
     // Mappa i nomi delle specializzazioni ai loro ID nel database
     const degreeProgramIds = {
-        'energetica': 1, 
-        'civile': 2,    
-        'informatica': 3, 
-        'biomedica': 4 
+        'energetica': 1,
+        'civile': 2,
+        'informatica': 3,
+        'biomedica': 4
     };
 
     // Funzione per attivare il tab della navigazione principale e colorare l'header
-    function activateMainTabAndHeader() { 
+    function activateMainTabAndHeader() {
         navLinks.forEach(link => {
             link.classList.remove('active-home', 'active-ding', 'active-dst', 'active-demm', 'active-contatti');
         });
-        
+
         header.classList.remove('header-home', 'header-ding', 'header-dst', 'header-demm', 'header-contatti', 'header-ingegneria');
 
         const isIngPage = currentPage.startsWith('ing_energetica.html') ||
                           currentPage.startsWith('ing_civile.html') ||
                           currentPage.startsWith('ing_informatica.html') ||
                           currentPage.startsWith('ing_biomedica.html');
-        
-        const isUploadPage = currentPage === 'upload_note.html'; 
-        const isLoginPage = currentPage === 'login.html'; // Nuova variabile
-        const isRegisterPage = currentPage === 'register.html'; // Nuova variabile
 
-        if (isIngPage || isUploadPage || isLoginPage || isRegisterPage) { // Include anche le pagine di auth nel rosso
+        const isUploadPage = currentPage === 'upload_note.html';
+        const isLoginPage = currentPage === 'login.html';
+        const isRegisterPage = currentPage === 'register.html';
+
+        if (isIngPage || isUploadPage || isLoginPage || isRegisterPage) {
             header.classList.add('header-ingegneria');
         } else {
             navLinks.forEach(link => {
-                const linkFileName = link.href.split('/').pop(); 
-                
+                const linkFileName = link.href.split('/').pop();
+
                 if ((currentPage === '' || currentPage === 'index.html') && linkFileName === 'index.html') {
                     link.classList.add('active-home');
                     header.classList.add('header-home');
-                } 
+                }
                 else if (currentPage === linkFileName) {
-                    const tabId = link.id; 
+                    const tabId = link.id;
                     if (tabId && tabId.startsWith('nav-')) {
-                        const tabName = tabId.replace('nav-', ''); 
+                        const tabName = tabId.replace('nav-', '');
                         link.classList.add('active-' + tabName);
                         header.classList.add('header-' + tabName);
                     }
@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
     // Funzione GLOBALE per gestire l'apertura/chiusura dei tab degli anni e caricare i corsi
-    window.openYearTab = function(evt, tabName) { 
+    window.openYearTab = function(evt, tabName) {
         console.log(`openYearTab chiamato per: ${tabName}`);
 
         let i, tabcontent, tablinks;
@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
         tabcontent = document.getElementsByClassName("year-tabcontent");
         for (i = 0; i < tabcontent.length; i++) {
             tabcontent[i].style.display = "none";
-            tabcontent[i].classList.remove("active"); 
+            tabcontent[i].classList.remove("active");
         }
 
         tablinks = document.getElementsByClassName("year-tabs")[0].getElementsByTagName("button");
@@ -105,10 +105,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const year = info.year;
 
             if (degreeProgramId) {
-                currentContentDiv.innerHTML = `<h3 style="color: black;">Caricamento corsi ${year}° Anno per Ingegneria ${info.degree_name}...</h3>`; 
+                currentContentDiv.innerHTML = `<h3 style="color: black;">Caricamento corsi ${year}° Anno per Ingegneria ${info.degree_name}...</h3>`;
                 console.log(`Richiesta corsi per degreeProgramId: ${degreeProgramId}, anno: ${year}`);
 
-                fetch(`${API_BASE_URL}/degree_programs/${degreeProgramId}/courses/${year}`)
+                fetch(`${API_BASE_URL}/api/degree_programs/${degreeProgramId}/courses/${year}`)
                     .then(response => {
                         console.log(`Risposta API status: ${response.status}`);
                         if (!response.ok) {
@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     .then(coursesData => {
                         console.log('Dati corsi ricevuti:', coursesData);
                         let coursesHtml = `<h3>Corsi ${year}° Anno</h3><div class="course-list"><ul>`;
-                        
+
                         if (Array.isArray(coursesData) && coursesData.length > 0) {
                             coursesData.forEach(course => {
                                 coursesHtml += `
@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     </li>
                                 `;
                             });
-                        } else if (coursesData.message) { 
+                        } else if (coursesData.message) {
                             coursesHtml += `<li>${coursesData.message}</li>`;
                         } else {
                             coursesHtml += `<li>Nessun corso trovato per questo anno.</li>`;
@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                         currentContentDiv.querySelectorAll('.view-notes-btn').forEach(button => {
                             button.addEventListener('click', function(event) {
-                                event.preventDefault(); 
+                                event.preventDefault();
                                 const courseId = this.dataset.courseId;
                                 const notesContainer = document.getElementById(`notes-for-course-${courseId}`);
                                 if (notesContainer.style.display === 'none') {
@@ -170,15 +170,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // NUOVA FUNZIONE: Carica gli appunti per un dato corso
+    // FUNZIONE CORRETTA: Carica gli appunti per un dato corso
     function loadNotesForCourse(courseId, containerElement) {
         console.log(`loadNotesForCourse chiamato per courseId: ${courseId}`);
-        containerElement.innerHTML = `<p style="color: black;">Caricamento appunti...</p>`; 
-        
-        fetch(`${API_BASE_URL}/courses/${courseId}/notes`)
+        containerElement.innerHTML = `<p style="color: black;">Caricamento appunti...</p>`;
+
+        fetch(`${API_BASE_URL}/api/courses/${courseId}/notes`)
             .then(response => {
                 console.log(`Risposta API appunti status: ${response.status}`);
-                if (response.status === 404) { 
+                if (response.status === 404) {
                     return { message: "Nessun appunto trovato per questo corso." };
                 }
                 if (!response.ok) {
@@ -189,25 +189,47 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(notesData => {
                 console.log('Dati appunti ricevuti:', notesData);
                 let notesHtml = `<div class="course-notes-list">`;
-                if (Array.isArray(notesData) && notesData.length > 0) { 
+                if (Array.isArray(notesData) && notesData.length > 0) {
                     notesData.forEach(note => {
-                        const downloadApiUrl = `${API_BASE_URL}/notes/${note.id}/download`;
+                        const downloadApiUrl = `${API_BASE_URL}/api/notes/${note.id}/download`;
                         notesHtml += `
                             <div class="note-item">
                                 <h4>${note.title}</h4>
                                 <p>${note.description || 'Nessuna descrizione.'}</p>
-                                <p>Caricato da: ${note.uploader_name} il ${new Date(note.upload_date).toLocaleDateString()}</p>
+                                <p>Caricato da: ${note.uploader_name || 'Anonimo'} il ${new Date(note.upload_date).toLocaleDateString()}</p>
                                 <a href="${downloadApiUrl}" class="download-note-btn" target="_blank">Scarica Appunto</a>
                             </div>
                         `;
                     });
-                } else if (notesData.message) { 
+                } else if (notesData.message) {
                     notesHtml += `<p>${notesData.message}</p>`;
                 } else {
                     notesHtml += `<p>Nessun appunto disponibile per questo corso.</p>`;
                 }
                 notesHtml += `</div>`;
                 containerElement.innerHTML = notesHtml;
+
+                containerElement.querySelectorAll('.download-note-btn').forEach(button => {
+                    button.addEventListener('click', function(event) {
+                        event.preventDefault();
+                        const apiUrl = this.href;
+                        
+                        fetch(apiUrl)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.download_url) {
+                                    window.open(data.download_url, '_blank');
+                                } else {
+                                    console.error('URL di download non trovato nella risposta API:', data);
+                                    alert('Impossibile ottenere il link per il download.');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Errore durante il recupero del link di download:', error);
+                                alert('Si è verificato un errore di rete.');
+                            });
+                    });
+                });
             })
             .catch(error => {
                 console.error('Errore nel caricamento degli appunti:', error);
@@ -218,7 +240,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Attiva il primo tab per gli anni al caricamento delle pagine di ingegneria
     if (currentPage.startsWith('ing_') && document.querySelector('.year-tabs button')) {
         const firstYearButton = document.querySelector('.year-tabs button');
-        firstYearButton.click(); 
+        firstYearButton.click();
     }
 
     // Gestione dell'inizializzazione della pagina di upload/registrazione/login
@@ -239,9 +261,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // Funzione per caricare i dipartimenti
             async function loadDepartments() {
                 try {
-                    const response = await fetch(`${API_BASE_URL}/departments`);
+                    const response = await fetch(`${API_BASE_URL}/api/departments`);
                     const departments = await response.json();
-                    
+
                     departmentSelect.innerHTML = '<option value="">Seleziona Dipartimento</option>';
                     departments.forEach(dept => {
                         const option = document.createElement('option');
@@ -266,9 +288,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!departmentId) return;
 
                 try {
-                    const response = await fetch(`${API_BASE_URL}/departments/${departmentId}/degree_programs`);
+                    const response = await fetch(`${API_BASE_URL}/api/departments/${departmentId}/degree_programs`);
                     const degreePrograms = await response.json();
-                    
+
                     degreePrograms.forEach(dp => {
                         const option = document.createElement('option');
                         option.value = dp.id;
@@ -292,15 +314,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 try {
                     let allCourses = [];
-                    for (let year = 1; year <= 3; year++) { 
-                        const response = await fetch(`${API_BASE_URL}/degree_programs/${degreeProgramId}/courses/${year}`);
+                    for (let year = 1; year <= 3; year++) {
+                        const response = await fetch(`${API_BASE_URL}/api/degree_programs/${degreeProgramId}/courses/${year}`);
                         if (response.ok) {
                             const coursesByYear = await response.json();
                             allCourses = allCourses.concat(coursesByYear);
                         }
                     }
-                    
-                    allCourses.sort((a,b) => a.name.localeCompare(b.name)); 
+
+                    allCourses.sort((a,b) => a.name.localeCompare(b.name));
                     allCourses.forEach(course => {
                         const option = document.createElement('option');
                         option.value = course.id;
@@ -321,16 +343,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Gestione del submit del form
             uploadNoteForm.addEventListener('submit', async function(e) {
-                e.preventDefault(); 
+                e.preventDefault();
                 uploadMessage.textContent = 'Caricamento in corso...';
                 uploadMessage.className = '';
 
-                const formData = new FormData(this); 
+                const formData = new FormData(this);
 
                 try {
-                    const response = await fetch(`${API_BASE_URL}/upload_note`, {
+                    const response = await fetch(`${API_BASE_URL}/api/upload_note`, {
                         method: 'POST',
-                        body: formData 
+                        body: formData
                     });
 
                     const result = await response.json();
@@ -338,7 +360,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (response.ok) {
                         uploadMessage.textContent = 'Appunto caricato con successo!';
                         uploadMessage.className = 'success';
-                        uploadNoteForm.reset(); 
+                        uploadNoteForm.reset();
                         degreeProgramSelect.innerHTML = '<option value="">Seleziona Corso di Laurea</option>';
                         degreeProgramSelect.disabled = true;
                         courseSelect.innerHTML = '<option value="">Seleziona Esame/Materia</option>';
@@ -373,7 +395,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const password = document.getElementById('password').value;
 
                     try {
-                        const response = await fetch(`${API_BASE_URL}/login`, {
+                        const response = await fetch(`${API_BASE_URL}/api/login`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -390,7 +412,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             localStorage.setItem('user_logged_in', 'true');
                             localStorage.setItem('username', result.user.username);
                             // Reindirizza alla home o a una pagina protetta
-                            window.location.href = 'index.html'; 
+                            window.location.href = 'index.html';
                         } else {
                             loginMessage.textContent = `Errore: ${result.error || 'Login fallito'}`;
                             loginMessage.className = 'error';
@@ -427,7 +449,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
 
                     try {
-                        const response = await fetch(`${API_BASE_URL}/register`, {
+                        const response = await fetch(`${API_BASE_URL}/api/register`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -463,25 +485,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
         async function checkLoginStatus() {
             try {
-                const response = await fetch(`${API_BASE_URL}/status`);
+                // NOTA: il check dello stato di login basato su cookie è gestito dal backend
+                const response = await fetch(`${API_BASE_URL}/api/status`);
+                if (!response.ok) { // Se il server restituisce errore (es. 500)
+                    throw new Error('Errore server nel controllo stato');
+                }
                 const data = await response.json();
 
-                if (data.logged_in) {
+                if (data.logged_in && userStatusElement) {
                     userStatusElement.textContent = `Benvenuto, ${data.user.username}!`;
-                    loginLink.style.display = 'none';
-                    registerLink.style.display = 'none';
-                    logoutLink.style.display = 'inline-block';
-                    if (uploadNoteLink) uploadNoteLink.style.display = 'inline-block'; // Mostra link upload se loggato
-                } else {
-                    userStatusElement.textContent = 'Non loggato';
-                    loginLink.style.display = 'inline-block';
-                    registerLink.style.display = 'inline-block';
-                    logoutLink.style.display = 'none';
-                    if (uploadNoteLink) uploadNoteLink.style.display = 'none'; // Nasconde link upload se non loggato
+                    if(loginLink) loginLink.style.display = 'none';
+                    if(registerLink) registerLink.style.display = 'none';
+                    if(logoutLink) logoutLink.style.display = 'inline-block';
+                    if(uploadNoteLink) uploadNoteLink.style.display = 'inline-block';
+                } else if(userStatusElement) {
+                     userStatusElement.textContent = ''; // Non mostrare nulla se non loggato
+                    if(loginLink) loginLink.style.display = 'inline-block';
+                    if(registerLink) registerLink.style.display = 'inline-block';
+                    if(logoutLink) logoutLink.style.display = 'none';
+                    if(uploadNoteLink) uploadNoteLink.style.display = 'none';
                 }
             } catch (error) {
                 console.error('Errore nel controllo stato login:', error);
-                userStatusElement.textContent = 'Errore stato login.';
+                if (userStatusElement) {
+                    userStatusElement.textContent = ''; // Nascondi in caso di errore
+                }
             }
         }
 
@@ -493,13 +521,11 @@ document.addEventListener('DOMContentLoaded', function() {
             logoutLink.addEventListener('click', async function(e) {
                 e.preventDefault();
                 try {
-                    const response = await fetch(`${API_BASE_URL}/logout`, { method: 'POST' });
+                    const response = await fetch(`${API_BASE_URL}/api/logout`, { method: 'POST' });
                     const result = await response.json();
                     if (response.ok) {
                         alert(result.message);
-                        localStorage.removeItem('user_logged_in'); // Pulisce lo stato locale
-                        localStorage.removeItem('username');
-                        window.location.reload(); // Ricarica la pagina per aggiornare la UI
+                        window.location.href = 'login.html'; // Reindirizza al login dopo il logout
                     } else {
                         alert(`Errore logout: ${result.error}`);
                     }
