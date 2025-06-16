@@ -518,14 +518,15 @@ footer a:hover {
 .main-content-box h2 {
     margin-bottom: 1.5em;
 }
-/* Stile FORZATO per il messaggio di benvenuto utente nella navbar */
+/* Stile per il TESTO di benvenuto utente */
 #navbar-user-area #user-status {
-        display: none !important;
-
+    color: #ffffff;      /* <-- Ecco il testo bianco che volevi */
+    font-weight: 600;    /* Mettiamo il testo in grassetto per distinguerlo */
+    font-size: 0.9em;
 }
 
-/* Questa regola nasconde l'elemento quando è vuoto (cioè quando non sei loggato) */
+/* Nasconde lo spazio se l'utente non è loggato */
 #navbar-user-area #user-status:empty {
-    display: none !important;
+    display: none;
 }
 }
