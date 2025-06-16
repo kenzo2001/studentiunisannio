@@ -223,3 +223,61 @@ div#navbar-user-area > span#user-status:empty { display: none !important; }
 }
 .main-content-box p { text-align: left; margin-bottom: 1em; }
 .main-content-box h2 { margin-bottom: 1.5em; }
+
+
+/* ========================================= */
+/* 7. STILI PER SPECIALIZZAZIONI DING PAGE   */
+/* ========================================= */
+
+.ing-tabs-container {
+    margin-top: 30px;
+    margin-bottom: 30px;
+}
+
+.ing-tabs {
+    display: flex;
+    flex-wrap: wrap; /* Permette ai pulsanti di andare a capo su schermi piccoli */
+    justify-content: center;
+    gap: 15px; /* Spazio tra i pulsanti */
+}
+
+.ing-button {
+    display: inline-block;
+    padding: 12px 25px;
+    background-color: var(--colore-primario); /* Usa il colore primario del sito */
+    color: var(--colore-bianco); /* Testo bianco */
+    text-decoration: none; /* Rimuove la sottolineatura del link */
+    font-weight: 600;
+    border-radius: var(--border-radius); /* Usa il raggio del bordo definito globalmente */
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    text-align: center;
+    border: none;
+    cursor: pointer;
+}
+
+.ing-button:hover {
+    background-color: var(--colore-primario-hover); /* Colore più scuro al passaggio del mouse */
+    transform: translateY(-2px); /* Leggero effetto di sollevamento */
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Stile per il pulsante "Carica un Nuovo Appunto" per coerenza */
+.btn-primario {
+    display: inline-block;
+    padding: 12px 25px;
+    background-color: var(--color-ding); /* Lo facciamo rosso come il DING */
+    color: var(--colore-bianco);
+    text-decoration: none;
+    font-weight: 600;
+    border-radius: var(--border-radius);
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    text-align: center;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-primario:hover {
+    background-color: #a00404; /* Un rosso leggermente più scuro */
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}

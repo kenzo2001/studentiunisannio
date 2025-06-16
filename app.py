@@ -182,7 +182,23 @@ def get_courses_by_year(degree_program_id, year):
     # Se trova i corsi, li converte in formato JSON e li invia.
     return jsonify([course.to_dict() for course in courses]), 200
 
+# Aggiungi questa nuova rotta nel file app.py
 
+@app.route('/api/departments', methods=['GET'])
+def get_departments():
+    """
+    Fornisce la lista di tutti i dipartimenti presenti nel database.
+    """
+    try:
+        # Interroga il database per ottenere tutti i record dalla tabella Department
+        all_departments = Department.query.order_by(Department.name).all()
+        
+        # Converte la lista di oggetti in un formato JSON e la restituisce
+        return jsonify([department.to_dict() for department in all_departments]), 200
+    except Exception as e:
+        # In caso di errore, lo stampa sul log del server e restituisce un errore generico
+        print(f"Errore durante il recupero dei dipartimenti: {e}")
+        return jsonify({"error": "Errore interno nel recupero dei dati"}), 500
 # --- ROTTE PER SERVIRE FILE STATICI ---
 @app.route('/')
 def serve_home():
