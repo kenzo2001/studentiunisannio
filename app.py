@@ -173,21 +173,18 @@ class Note(db.Model):
 
 # NUOVA LOGICA PER LA HOMEPAGE: Reindirizza al login se non autenticato
 @app.route('/')
-def serve_home_or_login():
-    if current_user.is_authenticated:
-        return send_from_directory('.', 'index.html')
-    else:
-        return redirect(url_for('serve_login_page'))
+def serve_home():
+    return send_from_directory('.', 'index.html')
 
-# Rotta per servire la pagina di login
+# Lascia invariate le altre rotte per servire le pagine di login e registrazione
 @app.route('/login.html')
 def serve_login_page():
     return send_from_directory('.', 'login.html')
 
-# Rotta per servire la pagina di registrazione
 @app.route('/register.html')
 def serve_register_page():
     return send_from_directory('.', 'register.html')
+
 
 # Rotta generica per servire tutti gli altri file statici (es. ding.html, style.css, script.js)
 # Questa rotta deve stare DOPO le rotte specifiche come /login.html e /register.html

@@ -490,4 +490,32 @@ footer a:hover {
     margin: 20px 0; /* Aggiunge un po' di spazio sopra e sotto l'annuncio */
     text-align: center;
 }
+
+
+/* ----------------------------------------- */
+/* 6. STILI PER IL CONTENITORE PRINCIPALE    */
+/* ----------------------------------------- */
+
+/* Stile per il box di contenuto principale, ispirato al login */
+.main-content-box {
+    max-width: 960px;
+    margin: 40px auto;
+    padding: 40px;
+    background-color: var(--colore-bianco);
+    border: 1px solid var(--bordo-colore);
+    border-radius: var(--border-radius);
+    box-shadow: 0 4px 12px rgba(0,0,0,.08);
+    text-align: center;
+}
+
+/* Allinea a sinistra i paragrafi dentro il box per leggibilità */
+.main-content-box p {
+    text-align: left;
+    margin-bottom: 1em; /* Spazio tra paragrafi */
+}
+
+/* Stile per i titoli dentro il box */
+.main-content-box h2 {
+    margin-bottom: 1.5em;
+}
 }
