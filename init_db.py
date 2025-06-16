@@ -7,7 +7,6 @@ def initialize_database():
     with app.app_context():
         # 1. Creazione di tutte le tabelle SQL (se non esistono)
         try:
-            print(f"INIT_DB: URL del database SQL in uso: {app.config['SQLALCHEMY_DATABASE_URI']}")
             db.create_all()
             print("INIT_DB: Struttura tabelle SQL verificata/creata.")
         except Exception as e:
@@ -17,34 +16,31 @@ def initialize_database():
         # 2. Popolamento Dipartimenti e Corsi di Laurea (se mancano)
         if not Department.query.first():
             print("INIT_DB: Popolando Dipartimenti e Corsi di Laurea...")
-            # Dipartimenti
-            ding = Department(name='DING')
-            dst = Department(name='DST')
-            demm = Department(name='DEMM')
+            # (Qui va il codice per aggiungere Dipartimenti e Corsi di Laurea, come prima)
+            ding = Department(name='DING'); dst = Department(name='DST'); demm = Department(name='DEMM')
             db.session.add_all([ding, dst, demm])
             db.session.commit()
-
-            # Corsi di Laurea
             db.session.add_all([
                 DegreeProgram(name='Ingegneria Energetica', department=ding),
                 DegreeProgram(name='Ingegneria Civile', department=ding),
                 DegreeProgram(name='Ingegneria Informatica', department=ding),
                 DegreeProgram(name='Ingegneria Biomedica', department=ding),
-                DegreeProgram(name='Scienze Biologiche', department=dst),
-                DegreeProgram(name='Chimica', department=dst),
-                DegreeProgram(name='Economia Aziendale', department=demm),
-                DegreeProgram(name='Management', department=demm)
             ])
             db.session.commit()
             print("INIT_DB: Dipartimenti e Corsi di Laurea aggiunti.")
         else:
             print("INIT_DB: Dipartimenti e Corsi di Laurea già presenti.")
 
-        # 3. Popolamento degli Esami (se mancano)
-        if not Course.query.first():
-            print("INIT_DB: Tabella Corsi vuota. Popolando gli esami di Ingegneria...")
-            
-            # Recupera i corsi di laurea dal DB per creare le associazioni
+        # 3. FORZIAMO IL POPOLAMENTO DEGLI ESAMI
+        print("INIT_DB: ESEGUENDO POPOLAMENTO FORZATO DEGLI ESAMI...")
+        try:
+            # Per sicurezza, prima cancelliamo tutti i corsi esistenti per evitare duplicati
+            num_deleted = db.session.query(Course).delete()
+            db.session.commit()
+            if num_deleted > 0:
+                print(f"INIT_DB: Cancellati {num_deleted} corsi esistenti per pulizia.")
+
+            # Ora recuperiamo i corsi di laurea e inseriamo quelli nuovi
             ing_energetica = DegreeProgram.query.filter_by(name='Ingegneria Energetica').first()
             ing_civile = DegreeProgram.query.filter_by(name='Ingegneria Civile').first()
             ing_informatica = DegreeProgram.query.filter_by(name='Ingegneria Informatica').first()
@@ -59,21 +55,20 @@ def initialize_database():
                     Course(name='Analisi Matematica I', year=1, degree_program=ing_biomedica), Course(name='Fisica Generale I', year=1, degree_program=ing_biomedica), Course(name='Geometria e Algebra Lineare', year=1, degree_program=ing_biomedica), Course(name='Biologia', year=1, degree_program=ing_biomedica), Course(name='Chimica', year=1, degree_program=ing_biomedica), Course(name='Informatica', year=1, degree_program=ing_biomedica), Course(name='Analisi Matematica II', year=2, degree_program=ing_biomedica), Course(name='Fisica Generale II', year=2, degree_program=ing_biomedica), Course(name='Meccanica Razionale', year=2, degree_program=ing_biomedica), Course(name='Fisiologia', year=2, degree_program=ing_biomedica), Course(name='Elettrotecnica', year=2, degree_program=ing_biomedica), Course(name='Elettronica', year=2, degree_program=ing_biomedica), Course(name='Bioingegneria dei Sistemi', year=3, degree_program=ing_biomedica), Course(name='Strumentazione Biomedica', year=3, degree_program=ing_biomedica), Course(name='Elaborazione dei Segnali Biomedici', year=3, degree_program=ing_biomedica), Course(name='Modellistica e Simulazione', year=3, degree_program=ing_biomedica), Course(name='Materiali Biomedici', year=3, degree_program=ing_biomedica), Course(name='Bioetica e Legislazione', year=3, degree_program=ing_biomedica),
                 ])
                 db.session.commit()
-                print("INIT_DB: Dati degli esami di Ingegneria aggiunti al database SQL.")
+                print("INIT_DB: Inserimento forzato degli esami di Ingegneria COMPLETATO.")
             else:
                 print("ERRORE INIT_DB: Non è stato possibile trovare i Corsi di Laurea per associare gli esami.")
-        else:
-            print("INIT_DB: La tabella Corsi contiene già dati. Popolamento saltato.")
+        except Exception as e:
+            db.session.rollback()
+            print(f"ERRORE INIT_DB durante il popolamento forzato dei corsi: {e}")
+            raise
 
         # 4. Inizializzazione utente admin su MongoDB
+        # ... (questa parte rimane invariata)
         try:
             if mongo.db.users.count_documents({"username": "admin"}) == 0:
                 print("INIT_DB: Aggiungendo utente 'admin' di esempio in MongoDB...")
-                mongo.db.users.insert_one({
-                    "username": "admin",
-                    "email": "admin@example.com",
-                    "password_hash": generate_password_hash("password")
-                })
+                mongo.db.users.insert_one({"username": "admin", "email": "admin@example.com", "password_hash": generate_password_hash("password")})
                 print("INIT_DB: Utente 'admin' aggiunto in MongoDB.")
             else:
                 print("INIT_DB: Utente 'admin' di esempio già presente in MongoDB.")
