@@ -228,7 +228,17 @@ def register():
     db.session.add(new_user)
     db.session.commit()
     return jsonify({"message": "Registrazione avvenuta con successo!"}), 201
+# API per ottenere tutti gli utenti (SOLO PER ADMIN)
+@app.route('/api/admin/users', methods=['GET'])
+@login_required
+def get_all_users():
+    # Semplice controllo per assicurarsi che solo l'utente 'admin' possa accedere
+    if current_user.username != 'admin':
+        return jsonify({"error": "Accesso negato. Riservato agli amministratori."}), 403
 
+    users = User.query.all()
+    # Restituisce una lista di utenti, usando la funzione to_dict() che abbiamo già
+    return jsonify([user.to_dict() for user in users])
 # API per il login
 @app.route('/api/login', methods=['POST'])
 def login():
