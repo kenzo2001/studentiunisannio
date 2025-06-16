@@ -10,7 +10,6 @@ from botocore.exceptions import NoCredentialsError, ClientError
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_pymongo import PyMongo
 from bson.objectid import ObjectId
-from app import mongo
 
 
 print("DEBUG: Avvio app.py")

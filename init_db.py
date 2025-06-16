@@ -2,6 +2,7 @@ import os
 # Importa app e db (dall'istanza globale in app.py) e i modelli del database
 from app import app, db, Department, DegreeProgram, Course, User
 from werkzeug.security import generate_password_hash # Per hashare la password di un utente admin di prova
+from app import mongo
 
 # Questo script è pensato per essere eseguito SOLO DURANTE IL BUILD O L'INIZIALIZZAZIONE.
 # NON DEVE ESSERE INVOCATO DURANTE IL NORMALE FUNZIONAMENTO DELL'APP IN PRODUZIONE.
