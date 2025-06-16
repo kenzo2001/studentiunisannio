@@ -16,18 +16,28 @@ def initialize_database():
         # 2. Popolamento Dipartimenti e Corsi di Laurea (se mancano)
         if not Department.query.first():
             print("INIT_DB: Popolando Dipartimenti e Corsi di Laurea...")
-            # (Qui va il codice per aggiungere Dipartimenti e Corsi di Laurea, come prima)
-            ding = Department(name='DING'); dst = Department(name='DST'); demm = Department(name='DEMM')
+            
+            # Dipartimenti
+            ding = Department(name='DING')
+            dst = Department(name='DST')
+            demm = Department(name='DEMM')
             db.session.add_all([ding, dst, demm])
             db.session.commit()
+            print("INIT_DB: Dipartimenti aggiunti.")
+
+            # Corsi di Laurea
             db.session.add_all([
                 DegreeProgram(name='Ingegneria Energetica', department=ding),
                 DegreeProgram(name='Ingegneria Civile', department=ding),
                 DegreeProgram(name='Ingegneria Informatica', department=ding),
                 DegreeProgram(name='Ingegneria Biomedica', department=ding),
+                DegreeProgram(name='Scienze Biologiche', department=dst),
+                DegreeProgram(name='Chimica', department=dst),
+                DegreeProgram(name='Economia Aziendale', department=demm),
+                DegreeProgram(name='Management', department=demm)
             ])
             db.session.commit()
-            print("INIT_DB: Dipartimenti e Corsi di Laurea aggiunti.")
+            print("INIT_DB: Corsi di Laurea aggiunti.")
         else:
             print("INIT_DB: Dipartimenti e Corsi di Laurea già presenti.")
 
@@ -64,7 +74,6 @@ def initialize_database():
             raise
 
         # 4. Inizializzazione utente admin su MongoDB
-        # ... (questa parte rimane invariata)
         try:
             if mongo.db.users.count_documents({"username": "admin"}) == 0:
                 print("INIT_DB: Aggiungendo utente 'admin' di esempio in MongoDB...")
@@ -78,3 +87,4 @@ def initialize_database():
 
 if __name__ == '__main__':
     initialize_database()
+    
