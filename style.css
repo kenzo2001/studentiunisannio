@@ -459,4 +459,27 @@ footer a:hover {
     font-weight: bold;
     font-size: 0.9em;
 }
+/* ---- STILI PER NAVBAR COLORATA ---- */
+
+/* Colora l'intera navbar in base alla sezione */
+.navbar.navbar-home { background-color: var(--color-home); }
+.navbar.navbar-ding, .navbar.navbar-ingegneria { background-color: var(--color-ding); }
+.navbar.navbar-dst { background-color: var(--color-dst); }
+.navbar.navbar-demm { background-color: var(--color-demm); }
+.navbar.navbar-contatti { background-color: var(--color-contatti); }
+
+/* Evidenzia il link attivo sulla navbar colorata */
+.navbar a.active-home,
+.navbar a.active-ding,
+.navbar a.active-dst,
+.navbar a.active-demm,
+.navbar a.active-contatti {
+    background-color: rgba(0, 0, 0, 0.2); /* Scurisce leggermente per dare l'effetto "premuto" */
+    font-weight: bold;
+}
+
+/* Rimuove lo sfondo grigio di default dalla navbar, ora che è dinamico */
+.navbar {
+    background-color: #333; /* Fallback di colore se nessuna classe è applicata */
+}
 }

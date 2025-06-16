@@ -16,43 +16,46 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     // Funzione per attivare il tab della navigazione principale e colorare l'header
-    function activateMainTabAndHeader() {
-        navLinks.forEach(link => {
-            link.classList.remove('active-home', 'active-ding', 'active-dst', 'active-demm', 'active-contatti');
-        });
+    // Sostituisci la vecchia funzione con questa
+function activateMainTabAndHeader() {
+    const navLinks = document.querySelectorAll('.navbar a');
+    const header = document.querySelector('header');
+    const navbar = document.querySelector('.navbar'); // Aggiunta questa riga
 
-        header.classList.remove('header-home', 'header-ding', 'header-dst', 'header-demm', 'header-contatti', 'header-ingegneria');
+    // Resetta le classi di colore
+    navLinks.forEach(link => {
+        link.classList.remove('active-home', 'active-ding', 'active-dst', 'active-demm', 'active-contatti');
+    });
+    header.classList.remove('header-home', 'header-ding', 'header-dst', 'header-demm', 'header-contatti', 'header-ingegneria');
+    navbar.classList.remove('navbar-home', 'navbar-ding', 'navbar-dst', 'navbar-demm', 'navbar-contatti', 'navbar-ingegneria'); // Aggiunta questa riga
 
-        const isIngPage = currentPage.startsWith('ing_energetica.html') ||
-                          currentPage.startsWith('ing_civile.html') ||
-                          currentPage.startsWith('ing_informatica.html') ||
-                          currentPage.startsWith('ing_biomedica.html');
+    const currentPage = window.location.pathname.split('/').pop();
+    const isIngPage = currentPage.startsWith('ing_');
+    const isAuthPage = ['upload_note.html', 'login.html', 'register.html'].includes(currentPage);
 
-        const isUploadPage = currentPage === 'upload_note.html';
-        const isLoginPage = currentPage === 'login.html';
-        const isRegisterPage = currentPage === 'register.html';
-
-        if (isIngPage || isUploadPage || isLoginPage || isRegisterPage) {
-            header.classList.add('header-ingegneria');
-        } else {
-            navLinks.forEach(link => {
-                const linkFileName = link.href.split('/').pop();
-
-                if ((currentPage === '' || currentPage === 'index.html') && linkFileName === 'index.html') {
-                    link.classList.add('active-home');
-                    header.classList.add('header-home');
-                }
-                else if (currentPage === linkFileName) {
-                    const tabId = link.id;
-                    if (tabId && tabId.startsWith('nav-')) {
-                        const tabName = tabId.replace('nav-', '');
-                        link.classList.add('active-' + tabName);
-                        header.classList.add('header-' + tabName);
-                    }
-                }
-            });
-        }
+    if (isIngPage || isAuthPage) {
+        header.classList.add('header-ingegneria');
+        navbar.classList.add('navbar-ingegneria'); // Aggiunta questa riga
     }
+
+    navLinks.forEach(link => {
+        const linkFileName = link.href.split('/').pop();
+
+        if ((currentPage === '' || currentPage === 'index.html') && linkFileName === 'index.html') {
+            link.classList.add('active-home');
+            header.classList.add('header-home');
+            navbar.classList.add('navbar-home'); // Aggiunta questa riga
+        } else if (currentPage === linkFileName) {
+            const tabId = link.id;
+            if (tabId && tabId.startsWith('nav-')) {
+                const tabName = tabId.replace('nav-', '');
+                link.classList.add('active-' + tabName);
+                header.classList.add('header-' + tabName);
+                navbar.classList.add('navbar-' + tabName); // Aggiunta questa riga
+            }
+        }
+    });
+}
 
     // Inizializza la navigazione principale e l'header
     activateMainTabAndHeader();
