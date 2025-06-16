@@ -1,26 +1,29 @@
 import os
-from flask import Flask, jsonify, request, send_from_directory, redirect, url_for, session, current_app 
+from flask import Flask, jsonify, request, send_from_directory, redirect, url_for, session, current_app
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash 
-from werkzeug.utils import secure_filename 
+from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from datetime import datetime
-from flask_cors import CORS 
-import boto3 
+from flask_cors import CORS
+import boto3
 from botocore.exceptions import NoCredentialsError, ClientError
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user 
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 
-print("DEBUG: Avvio app.py") 
+print("DEBUG: Avvio app.py")
 
 # Inizializza l'app Flask
-app = Flask(__name__, static_folder='.', static_url_path='/') 
+app = Flask(__name__, static_folder='.', static_url_path='/')
 
 # --- Configurazione del Database (unica e corretta per PostgreSQL) ---
 # Usa la variabile d'ambiente DATABASE_URL fornita da Fly.io per PostgreSQL.
 # La parte .replace('postgres://', 'postgresql+psycopg2://') forza il dialetto corretto per SQLAlchemy.
 # Il fallback 'sqlite:///unisannio_appunti.db' è solo per sviluppo locale senza DB esterno.
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL').replace('postgres://', 'postgresql+psycopg2://') \
-                                        if os.environ.get('DATABASE_URL') else 'sqlite:///unisannio_appunti.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False 
+db_url = os.environ.get('DATABASE_URL')
+if db_url:
+    app.config['SQLALCHEMY_DATABASE_URI'] = db_url.replace('postgres://', 'postgresql+psycopg2://')
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///unisannio_appunti.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Chiave segreta per le sessioni Flask (ESSENZIALE per sicurezza e mantenimento sessione)
 # Prende da variabile d'ambiente FLASK_SECRET_KEY su Fly.io, con un fallback per lo sviluppo locale.
@@ -33,17 +36,17 @@ app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'la_tua_chiave_seg
 # CAMBIA QUESTO VALORE IN BASE AL DOMINIO CHE STAI EFFETTIVAMENTE USANDO PER ACCEDERE ALL'APP IN PRODUZIONE.
 # Se usi studentiunisannio1991.fly.dev: app.config['SESSION_COOKIE_DOMAIN'] = '.studentiunisannio1991.fly.dev'
 # Se usi studentiunisannio.it o www.studentiunisannio.it:
-app.config['SESSION_COOKIE_DOMAIN'] = '.studentiunisannio.it' 
+app.config['SESSION_COOKIE_DOMAIN'] = '.studentiunisannio.it'
 
 # --- Configurazione per i Domini Email Permessi per la Registrazione ---
 app.config['ALLOWED_EMAIL_DOMAINS'] = ['unisannio.it', 'studenti.unisannio.it', 'example.com'] # <--- CAMBIA QUESTI DOMINI!
 
 # Inizializza SQLAlchemy e collegalo all'app
-db = SQLAlchemy() 
-db.init_app(app) 
+db = SQLAlchemy()
+db.init_app(app)
 
 # Configurazione CORS (con supports_credentials=True, NECESSARIO per i cookie di sessione cross-origin)
-CORS(app, supports_credentials=True) 
+CORS(app, supports_credentials=True)
 
 # --- Configurazione Flask-Login ---
 login_manager = LoginManager()
@@ -61,18 +64,18 @@ def unauthorized():
     if request.path.startswith('/api/'):
         return jsonify({"error": "Accesso non autorizzato. Effettua il login."}), 401
     # Se la richiesta è una navigazione diretta del browser, reindirizza alla pagina di login
-    return redirect(url_for('serve_login_page')) 
+    return redirect(url_for('serve_login_page'))
 
 # --- Configurazione AWS S3 ---
 # Prende le credenziali e la regione dalle variabili d'ambiente di Fly.io
 S3_BUCKET = os.environ.get("S3_BUCKET_NAME")
 S3_KEY = os.environ.get("AWS_ACCESS_KEY_ID")
 S3_SECRET = os.environ.get("AWS_SECRET_ACCESS_KEY")
-S3_REGION = os.environ.get("S3_REGION") 
+S3_REGION = os.environ.get("S3_REGION")
 
 s3_client = None
 if S3_KEY and S3_SECRET and S3_REGION and S3_BUCKET:
-    print("DEBUG: Variabili d'ambiente AWS S3 trovate. Tentativo di inizializzazione client S3.") 
+    print("DEBUG: Variabili d'ambiente AWS S3 trovate. Tentativo di inizializzazione client S3.")
     try:
         s3_client = boto3.client(
             's3',
@@ -80,25 +83,25 @@ if S3_KEY and S3_SECRET and S3_REGION and S3_BUCKET:
             aws_secret_access_key=S3_SECRET,
             region_name=S3_REGION
         )
-        print("DEBUG: Client S3 inizializzato con successo.") 
+        print("DEBUG: Client S3 inizializzato con successo.")
     except Exception as e:
-        print(f"ERRORE DEBUG: Errore nell'inizializzazione del client S3: {e}") 
+        print(f"ERRORE DEBUG: Errore nell'inizializzazione del client S3: {e}")
 else:
-    print("ERRORE DEBUG: Variabili d'ambiente AWS S3 non impostate. Le operazioni S3 falliranno.") 
+    print("ERRORE DEBUG: Variabili d'ambiente AWS S3 non impostate. Le operazioni S3 falliranno.")
 
 # --- Validazione Tipo File ---
-ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'ppt', 'pptx'} 
+ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'ppt', 'pptx'}
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # --- Definizione dei Modelli del Database ---
-class User(UserMixin, db.Model): 
+class User(UserMixin, db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False) 
+    password_hash = db.Column(db.String(128), nullable=False)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -114,7 +117,7 @@ class User(UserMixin, db.Model):
         }
 
 class Department(db.Model):
-    __tablename__ = 'departments' 
+    __tablename__ = 'departments'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), unique=True, nullable=False)
     degree_programs = db.relationship('DegreeProgram', backref='department', lazy=True)
@@ -134,14 +137,14 @@ class Course(db.Model):
     __tablename__ = 'courses'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
-    year = db.Column(db.Integer, nullable=False) 
+    year = db.Column(db.Integer, nullable=False)
     degree_program_id = db.Column(db.Integer, db.ForeignKey('degree_programs.id'), nullable=False)
     notes = db.relationship('Note', backref='course', lazy=True)
     def to_dict(self):
         return {
-            "id": self.id, 
-            "name": self.name, 
-            "year": self.year, 
+            "id": self.id,
+            "name": self.name,
+            "year": self.year,
             "degree_program_id": self.degree_program_id
         }
 
@@ -150,7 +153,7 @@ class Note(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    s3_key = db.Column(db.String(255), nullable=False) 
+    s3_key = db.Column(db.String(255), nullable=False)
     upload_date = db.Column(db.DateTime, default=datetime.utcnow)
     course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
     uploader_name = db.Column(db.String(80), nullable=True)
@@ -159,7 +162,7 @@ class Note(db.Model):
             "id": self.id,
             "title": self.title,
             "description": self.description,
-            "s3_key": self.s3_key, 
+            "s3_key": self.s3_key,
             "upload_date": self.upload_date.isoformat(),
             "course_id": self.course_id,
             "uploader_name": self.uploader_name
@@ -210,7 +213,7 @@ def register():
     allowed_domains = app.config.get('ALLOWED_EMAIL_DOMAINS', [])
     email_domain = email.split('@')[-1]
 
-    if allowed_domains and email_domain not in allowed_domains: 
+    if allowed_domains and email_domain not in allowed_domains:
         return jsonify({"error": f"Registrazione non consentita per il dominio {email_domain}. Sono ammessi solo domini: {', '.join(allowed_domains)}"}), 403
 
     if User.query.filter_by(username=username).first():
@@ -235,16 +238,16 @@ def login():
 
     user = User.query.filter_by(username=username).first()
     if user and user.check_password(password):
-        login_user(user) 
+        login_user(user)
         return jsonify({"message": "Login avvenuto con successo!", "user": user.to_dict()}), 200
     else:
         return jsonify({"error": "Username o password non validi"}), 401
 
 # API per il logout
 @app.route('/api/logout', methods=['POST'])
-@login_required 
+@login_required
 def logout():
-    logout_user() 
+    logout_user()
     return jsonify({"message": "Logout avvenuto con successo!"}), 200
 
 # API per controllare lo stato di login dell'utente corrente
@@ -281,11 +284,11 @@ def get_notes_by_course(course_id):
     notes = Note.query.filter_by(course_id=course_id).all()
     if not notes:
         return jsonify({"message": "Nessun appunto trovato per questo esame"}), 404
-    return jsonify([n.to_dict() for n in notes]) 
+    return jsonify([n.to_dict() for n in notes])
 
 # API per caricare un nuovo appunto su S3 (PROTETTA: richiede login)
 @app.route('/api/upload_note', methods=['POST'])
-@login_required 
+@login_required
 def upload_note():
     if not s3_client:
         return jsonify({"error": "Servizio S3 non inizializzato. Controlla le variabili d'ambiente AWS."}), 500
@@ -300,14 +303,14 @@ def upload_note():
     
     if file and allowed_file(file.filename):
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        key = f"{timestamp}_{secure_filename(file.filename)}" 
+        key = f"{timestamp}_{secure_filename(file.filename)}"
         
         try:
             s3_client.upload_fileobj(file, S3_BUCKET, key)
             print(f"File {key} caricato con successo nel bucket S3: {S3_BUCKET}")
         except NoCredentialsError:
             return jsonify({"error": "Credenziali AWS non disponibili"}), 500
-        except ClientError as e: 
+        except ClientError as e:
             return jsonify({"error": f"Errore client S3: {e.response['Error']['Message']}"}), 500
         except Exception as e:
             return jsonify({"error": f"Errore generico caricamento su S3: {str(e)}"}), 500
@@ -317,7 +320,7 @@ def upload_note():
         course_id = request.form.get('course_id')
         
         # Il nome dell'uploader è preso dall'utente attualmente loggato
-        uploader_name = current_user.username if current_user.is_authenticated else 'Anonimo' 
+        uploader_name = current_user.username if current_user.is_authenticated else 'Anonimo'
 
         if not title or not course_id:
             try:
@@ -330,9 +333,9 @@ def upload_note():
             new_note = Note(
                 title=title,
                 description=description,
-                s3_key=key, 
+                s3_key=key,
                 course_id=int(course_id),
-                uploader_name=uploader_name 
+                uploader_name=uploader_name
             )
             db.session.add(new_note)
             db.session.commit()
@@ -361,9 +364,9 @@ def download_note(note_id):
         s3_url = s3_client.generate_presigned_url(
             'get_object',
             Params={'Bucket': S3_BUCKET, 'Key': note.s3_key},
-            ExpiresIn=300 
+            ExpiresIn=300
         )
-        return jsonify({"download_url": s3_url}) 
+        return jsonify({"download_url": s3_url})
     except NoCredentialsError:
         return jsonify({"error": "Credenziali AWS non disponibili"}), 500
     except ClientError as e:

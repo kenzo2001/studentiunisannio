@@ -8,21 +8,23 @@ primary_region = 'fra' # O la tua regione corretta (es. 'fra' per Francoforte)
 
 [build]
   builder = "paketobuildpacks/builder:base" # Usa il builder Paketo base
-  [build.args] # <-- QUESTA SEZIONE DEVE ESSERE QUI E ATTIVA
-    DATABASE_URL = "postgresql://postgres:k8OAWsfTNiwoQ4n@polished-night-1030.flycast:5432"
-    # SOSTITUISCI L'INTERA STRINGA con quella ESATTA del tuo database PostgreSQL
-    # (inclusa la password che ti è stata data da flyctl postgres create)
-
+  # La sezione [build.args] non è necessaria per le variabili d'ambiente
+  # runtime, verranno caricate dai segreti di Fly.io. Puoi rimuoverla.
 
 # SEZIONE: Variabili d'ambiente per l'applicazione
 [env]
   PORT = "8080" # Imposta la porta per Gunicorn
 
+# --- NUOVA SEZIONE: COMANDO DI DEPLOY ---
+# Questa sezione definisce un comando che viene eseguito UNA SOLA VOLTA
+# ogni volta che fai un nuovo deploy, prima che l'app venga avviata.
+# È il posto perfetto per inizializzare o migrare il database.
+[deploy]
+  release_command = "python init_db.py"
 
 # SEZIONE: Definisce come Fly.io deve avviare i processi
 [processes]
   web = "gunicorn --bind 0.0.0.0:$PORT app:app" # Processo web definito
-
 
 [http_service]
   internal_port = 8080 # Questa è la porta interna della VM
@@ -31,7 +33,6 @@ primary_region = 'fra' # O la tua regione corretta (es. 'fra' per Francoforte)
   auto_start_machines = true
   min_machines_running = 0
   processes = ['web'] # Punta al processo 'web' definito
-
 
 [[vm]]
   memory = '1gb'
