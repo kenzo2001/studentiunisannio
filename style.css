@@ -518,20 +518,14 @@ footer a:hover {
 .main-content-box h2 {
     margin-bottom: 1.5em;
 }
-/* Stile per il messaggio di benvenuto utente nella navbar */
+/* Stile FORZATO per il messaggio di benvenuto utente nella navbar */
 #navbar-user-area #user-status {
-    background-color: #ffffff;             /* SFONDO BIANCO */
-    color: #ffffff;                       /* TESTO SCURO (lo stesso dei titoli) */
-    font-size: 0.9em;
-    font-weight: 600;
-    padding: 5px 10px;
-    border-radius: var(--border-radius);
-    line-height: 1.5;
-    border: 1px solid var(--bordo-colore); /* Aggiunge un bordo grigio chiaro per definirlo */
+        display: none !important;
+
 }
 
 /* Questa regola nasconde l'elemento quando è vuoto (cioè quando non sei loggato) */
 #navbar-user-area #user-status:empty {
-    display: none;
+    display: none !important;
 }
 }
