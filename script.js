@@ -15,6 +15,71 @@ document.addEventListener('DOMContentLoaded', function() {
         'biomedica': 4
     };
 
+
+    async function checkLoginStatus() {
+    // Funzione interna per caricare dinamicamente lo script di AdSense
+    function loadAdSenseScript() {
+        // Controlla se lo script è già stato caricato per non duplicarlo
+        if (document.getElementById('adsense-script')) {
+            return;
+        }
+        const script = document.createElement('script');
+        script.id = 'adsense-script';
+        script.async = true;
+        script.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8614560189633962';
+        script.crossOrigin = 'anonymous';
+        document.head.appendChild(script);
+        console.log("AdSense script loaded for non-logged-in user.");
+    }
+
+    // Seleziona gli elementi della UI
+    const userStatusElement = document.getElementById('user-status');
+    const loginLink = document.getElementById('nav-login');
+    const registerLink = document.getElementById('nav-register');
+    const logoutLink = document.getElementById('nav-logout');
+    const uploadNoteLink = document.getElementById('nav-upload');
+    const adContainers = document.querySelectorAll('.adsense-container');
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/status`);
+        const data = await response.json();
+
+        if (data.logged_in) {
+            // --- UTENTE LOGGATO ---
+            // 1. Mostra l'area utente
+            if(userStatusElement) userStatusElement.textContent = `Benvenuto, ${data.user.username}!`;
+            if(loginLink) loginLink.style.display = 'none';
+            if(registerLink) registerLink.style.display = 'none';
+            if(logoutLink) logoutLink.style.display = 'inline-block';
+            if(uploadNoteLink) uploadNoteLink.style.display = 'inline-block';
+
+            // 2. Assicurati che gli annunci siano nascosti
+            adContainers.forEach(container => {
+                container.style.display = 'none';
+            });
+
+        } else {
+            // --- UTENTE NON LOGGATO ---
+            // 1. Mostra i link di Login/Registrazione
+            if(userStatusElement) userStatusElement.textContent = '';
+            if(loginLink) loginLink.style.display = 'inline-block';
+            if(registerLink) registerLink.style.display = 'inline-block';
+            if(logoutLink) logoutLink.style.display = 'none';
+            if(uploadNoteLink) uploadNoteLink.style.display = 'none';
+
+            // 2. Carica lo script di AdSense e mostra i contenitori degli annunci
+            loadAdSenseScript();
+            adContainers.forEach(container => {
+                container.style.display = 'block';
+            });
+        }
+    } catch (error) {
+        console.error('Errore nel controllo stato login:', error);
+        // In caso di errore, nascondiamo comunque l'area utente e gli annunci
+        if (userStatusElement) userStatusElement.textContent = '';
+    }
+}
+
     // Funzione per attivare il tab della navigazione principale e colorare l'header
     // Sostituisci la vecchia funzione con questa
 function activateMainTabAndHeader() {

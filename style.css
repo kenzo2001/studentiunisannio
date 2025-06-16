@@ -482,4 +482,12 @@ footer a:hover {
 .navbar {
     background-color: #333; /* Fallback di colore se nessuna classe è applicata */
 }
+
+
+/* Nasconde i contenitori degli annunci di default */
+.adsense-container {
+    display: none;
+    margin: 20px 0; /* Aggiunge un po' di spazio sopra e sotto l'annuncio */
+    text-align: center;
+}
 }
