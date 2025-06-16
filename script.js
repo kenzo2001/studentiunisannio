@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // URL base per le API del backend (Fly.io)
     // Sostituisci con l'URL della tua app Fly.io o il tuo dominio personalizzato
-const API_BASE_URL = 'http://localhost:8080/api';    // const API_BASE_URL = 'https://studentiunisannio.it/api'; // Se il tuo dominio funziona già
+    const API_BASE_URL = 'https://studentiunisannio.it/api'; // Se il tuo dominio funziona già
 
     // Mappa i nomi delle specializzazioni ai loro ID nel database
     const degreeProgramIds = {
