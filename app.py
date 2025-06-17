@@ -21,6 +21,9 @@ app = Flask(__name__, static_folder='.', static_url_path='/')
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'fallback-secret-key-per-sviluppo-locale')
 app.config['SESSION_COOKIE_DOMAIN'] = '.studentiunisannio.it'
 
+# NUOVA RIGA DA AGGIUNGERE
+app.config['ALLOWED_EMAIL_DOMAINS'] = ['unisannio.it', 'studenti.unisannio.it']
+
 # Database SQL (PostgreSQL)
 db_url = os.environ.get('DATABASE_URL')
 if db_url:
