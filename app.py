@@ -1,7 +1,9 @@
 import os
+import uuid
 from flask import Flask, jsonify, request, send_from_directory, redirect, url_for, session, current_app
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from datetime import datetime
 from flask_cors import CORS
 import boto3
@@ -14,67 +16,57 @@ print("DEBUG: Avvio app.py")
 
 app = Flask(__name__, static_folder='.', static_url_path='/')
 
-# --- Configurazione Chiave Segreta & Dominio ---
+# --- CONFIGURAZIONE ---
+# Chiave Segreta e Dominio Cookie
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'fallback-secret-key-per-sviluppo-locale')
 app.config['SESSION_COOKIE_DOMAIN'] = '.studentiunisannio.it'
-app.config['ALLOWED_EMAIL_DOMAINS'] = ['unisannio.it', 'studenti.unisannio.it', 'example.com'] 
 
-# --- Configurazione Database SQL (per corsi, appunti, etc.) ---
+# Database SQL (PostgreSQL)
 db_url = os.environ.get('DATABASE_URL')
 if db_url:
     app.config['SQLALCHEMY_DATABASE_URI'] = db_url.replace('postgres://', 'postgresql+psycopg2://')
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///unisannio_appunti.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy()
-db.init_app(app)
+db = SQLAlchemy(app)
 
-# --- Configurazione MongoDB (per utenti) ---
+# Database NoSQL (MongoDB) per gli utenti
 mongo_uri_from_env = os.environ.get("MONGO_URI")
-# RIGA DI DEBUG: Stampa la URI che viene letta dall'ambiente
 print(f"DEBUG: La MONGO_URI letta dall'ambiente è: {mongo_uri_from_env}")
 app.config["MONGO_URI"] = mongo_uri_from_env
 mongo = PyMongo(app)
 
-# --- Configurazione AWS S3 ---
+# AWS S3
 S3_BUCKET = os.environ.get("S3_BUCKET_NAME")
 S3_KEY = os.environ.get("AWS_ACCESS_KEY_ID")
 S3_SECRET = os.environ.get("AWS_SECRET_ACCESS_KEY")
 S3_REGION = os.environ.get("S3_REGION")
-
 s3_client = None
 if S3_KEY and S3_SECRET and S3_REGION and S3_BUCKET:
     try:
         s3_client = boto3.client('s3', aws_access_key_id=S3_KEY, aws_secret_access_key=S3_SECRET, region_name=S3_REGION)
     except Exception as e:
-        print(f"ERRORE DEBUG: Errore nell'inizializzazione del client S3: {e}")
+        print(f"ERRORE DEBUG: Errore inizializzazione client S3: {e}")
 else:
     print("ERRORE DEBUG: Variabili d'ambiente AWS S3 non impostate.")
 
-# --- Configurazione Flask-Login ---
+# Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-@login_manager.unauthorized_handler
-def unauthorized():
-    if request.path.startswith('/api/'):
-        return jsonify({"error": "Accesso non autorizzato. Effettua il login."}), 401
-    return redirect(url_for('serve_login_page'))
+# --- MODELLI ---
 
-# --- DEFINIZIONE DEI MODELLI ---
-
-# Nuovo Modello Utente per MongoDB
+# Modello Utente per MongoDB (da Modello A)
 class User(UserMixin):
     def __init__(self, user_data):
         self.id = str(user_data.get('_id'))
         self.username = user_data.get('username')
         self.email = user_data.get('email')
         self.password_hash = user_data.get('password_hash')
-
     def to_dict(self):
         return {"id": self.id, "username": self.username, "email": self.email}
 
-# Modelli SQL esistenti
+# Modelli Dati per SQL (da Modello B)
 class Department(db.Model):
     __tablename__ = 'departments'
     id = db.Column(db.Integer, primary_key=True)
@@ -110,15 +102,22 @@ class Note(db.Model):
     uploader_name = db.Column(db.String(80), nullable=True)
     def to_dict(self): return {"id": self.id, "title": self.title, "description": self.description, "s3_key": self.s3_key, "upload_date": self.upload_date.isoformat(), "course_id": self.course_id, "uploader_name": self.uploader_name}
 
-# --- GESTIONE UTENTI CON MONGO DB ---
+# --- GESTIONE SESSIONE UTENTE (da Modello A) ---
 
 @login_manager.user_loader
 def load_user(user_id):
     user_data = mongo.db.users.find_one({"_id": ObjectId(user_id)})
-    if user_data:
-        return User(user_data)
-    return None
+    return User(user_data) if user_data else None
 
+@login_manager.unauthorized_handler
+def unauthorized():
+    if request.path.startswith('/api/'):
+        return jsonify({"error": "Accesso non autorizzato. Effettua il login."}), 401
+    return redirect(url_for('serve_login_page'))
+
+# --- ROTTE API ---
+
+# API Utenti che usano MongoDB (da Modello A)
 @app.route('/api/register', methods=['POST'])
 def register():
     data = request.get_json()
@@ -163,252 +162,81 @@ def get_status():
     else:
         return jsonify({"logged_in": False}), 200
 
-# --- VECCHIE API (NON TOCCATE) ---
-# ... (tutte le altre tue rotte per dipartimenti, corsi, appunti, etc. rimangono qui invariate)
-
-# NUOVA ROTTA DA AGGIUNGERE PER CARICARE I CORSI
-@app.route('/api/degree_programs/<int:degree_program_id>/courses/<int:year>', methods=['GET'])
-def get_courses_by_year(degree_program_id, year):
-    """
-    Fornisce la lista dei corsi per un dato corso di laurea e anno.
-    """
-    # Cerca i corsi nel database filtrando per ID del corso di laurea e per anno.
-    courses = Course.query.filter_by(degree_program_id=degree_program_id, year=year).order_by(Course.name).all()
-
-    # Se non trova corsi, restituisce un messaggio che lo script può interpretare.
-    if not courses:
-        return jsonify({"message": "Nessun corso trovato per questo anno."}), 404
-
-    # Se trova i corsi, li converte in formato JSON e li invia.
-    return jsonify([course.to_dict() for course in courses]), 200
-
-# Aggiungi questa nuova rotta nel file app.py
-
+# API Dati che usano SQL (prese e adattate da Modello B)
 @app.route('/api/departments', methods=['GET'])
 def get_departments():
-
-
-  
-    """
-    Fornisce la lista di tutti i dipartimenti presenti nel database.
-    """
-    try:
-        # Interroga il database per ottenere tutti i record dalla tabella Department
-        all_departments = Department.query.order_by(Department.name).all()
-        
-        # Converte la lista di oggetti in un formato JSON e la restituisce
-        return jsonify([department.to_dict() for department in all_departments]), 200
-    except Exception as e:
-        # In caso di errore, lo stampa sul log del server e restituisce un errore generico
-        print(f"Errore durante il recupero dei dipartimenti: {e}")
-        return jsonify({"error": "Errore interno nel recupero dei dati"}), 500
-# --- ROTTE PER SERVIRE FILE STATICI ---
-
+    departments = Department.query.order_by(Department.name).all()
+    return jsonify([d.to_dict() for d in departments])
 
 @app.route('/api/departments/<int:department_id>/degree_programs', methods=['GET'])
 def get_degree_programs_by_department(department_id):
-    """
-    Fornisce la lista dei corsi di laurea per un dato dipartimento.
-    """
-    # Cerca il dipartimento per l'ID fornito, se non lo trova restituisce errore 404.
-    department = Department.query.get_or_404(department_id)
-    
-    # Trova tutti i corsi di laurea associati a quel dipartimento.
-    degree_programs = DegreeProgram.query.filter_by(department_id=department.id).order_by(DegreeProgram.name).all()
-    
-    # Se non ce ne sono, restituisce un messaggio.
-    if not degree_programs:
-        return jsonify({"message": "Nessun corso di laurea trovato per questo dipartimento."}), 404
-        
-    # Restituisce la lista in formato JSON.
-    return jsonify([program.to_dict() for program in degree_programs]), 200
-@app.route('/')
+    degree_programs = DegreeProgram.query.filter_by(department_id=department_id).order_by(DegreeProgram.name).all()
+    return jsonify([dp.to_dict() for dp in degree_programs])
 
+@app.route('/api/degree_programs/<int:degree_program_id>/courses/<int:year>', methods=['GET'])
+def get_courses_by_year(degree_program_id, year):
+    courses = Course.query.filter_by(degree_program_id=degree_program_id, year=year).order_by(Course.name).all()
+    return jsonify([c.to_dict() for c in courses])
 
-
-# AGGIUNGI QUESTA ROTTA IN app.py
-
-# SOSTITUISCI LA VECCHIA FUNZIONE upload_note CON QUESTA
+@app.route('/api/courses/<int:course_id>/notes', methods=['GET'])
+def get_notes_for_course(course_id):
+    notes = Note.query.filter_by(course_id=course_id).order_by(Note.upload_date.desc()).all()
+    return jsonify([n.to_dict() for n in notes])
 
 @app.route('/api/upload_note', methods=['POST'])
 @login_required
 def upload_note():
-    """
-    Gestisce la ricezione del modulo di upload, carica il file su S3
-    e salva i metadati nel database. (VERSIONE ROBUSTA)
-    """
     if 'file' not in request.files:
-        return jsonify({"error": "Nessun file inviato nella richiesta"}), 400
+        return jsonify({"error": "Nessun file fornito"}), 400
     file = request.files['file']
     if file.filename == '':
-        return jsonify({"error": "Nessun file selezionato"}), 400
-
+        return jsonify({"error": "Nome file vuoto"}), 400
+    
     title = request.form.get('title')
-    course_id_str = request.form.get('course_id') # Ricevi l'ID come stringa
+    course_id_str = request.form.get('course_id')
     description = request.form.get('description', '')
-    uploader_name = request.form.get('uploader_name', 'Anonimo')
+    uploader_name = request.form.get('uploader_name', current_user.username)
 
-    if not all([title, course_id_str, file]):
-        return jsonify({"error": "Titolo, materia e file sono campi obbligatori"}), 400
-
-    # --- VALIDAZIONE MIGLIORATA DELL'ID CORSO ---
+    if not all([title, course_id_str]):
+        return jsonify({"error": "Titolo e materia sono obbligatori"}), 400
     try:
         course_id = int(course_id_str)
     except (ValueError, TypeError):
-        return jsonify({"error": f"L'ID della materia non è un numero valido: '{course_id_str}'"}), 400
-    # --- FINE VALIDAZIONE ---
+        return jsonify({"error": "ID materia non valido"}), 400
 
     if s3_client and file:
         try:
             original_filename = secure_filename(file.filename)
-            unique_s3_key = f"notes/{uuid.uuid4()}-{original_filename}"
+            unique_s3_key = f"notes/{uuid.uuid4().hex}-{original_filename}"
+            s3_client.upload_fileobj(file, S3_BUCKET, unique_s3_key)
 
-            s3_client.upload_fileobj(
-                file,
-                S3_BUCKET,
-                unique_s3_key,
-                ExtraArgs={"ContentType": file.content_type}
-            )
-
-            new_note = Note(
-                title=title,
-                description=description,
-                s3_key=unique_s3_key,
-                course_id=course_id, # Usa l'ID validato
-                uploader_name=uploader_name if uploader_name else "Anonimo"
-            )
+            new_note = Note(title=title, description=description, s3_key=unique_s3_key, course_id=course_id, uploader_name=uploader_name)
             db.session.add(new_note)
             db.session.commit()
-
             return jsonify({"message": "Appunto caricato con successo!"}), 201
-
-        except ClientError as e:
-            print(f"ERRORE AWS S3: {e}")
-            return jsonify({"error": "Errore durante il caricamento del file."}), 500
         except Exception as e:
-            # Qui catturiamo errori come 'IntegrityError' se course_id non esiste nel DB
-            print(f"ERRORE GENERICO DURANTE L'UPLOAD: {e}")
+            print(f"ERRORE UPLOAD: {e}")
             db.session.rollback()
-            return jsonify({"error": "Si è verificato un errore interno. Controlla che la materia esista."}), 500
-    else:
-        return jsonify({"error": "Configurazione per l'upload non disponibile."}), 500
-    """
-    Gestisce la ricezione del modulo di upload, carica il file su S3
-    e salva i metadati nel database.
-    """
-    # 1. Controlla se il file è presente nella richiesta
-    if 'file' not in request.files:
-        return jsonify({"error": "Nessun file inviato nella richiesta"}), 400
-
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({"error": "Nessun file selezionato"}), 400
-
-    # 2. Recupera gli altri dati dal modulo
-    title = request.form.get('title')
-    course_id = request.form.get('course_id')
-    description = request.form.get('description', '') # Opzionale
-    uploader_name = request.form.get('uploader_name', 'Anonimo') # Opzionale
-
-    # 3. Valida che i campi obbligatori ci siano
-    if not all([title, course_id, file]):
-        return jsonify({"error": "Titolo, materia e file sono campi obbligatori"}), 400
-
-    # 4. Se il client S3 è configurato e il file è valido, procedi con l'upload
-    if s3_client and file:
-        try:
-            # Crea un nome di file sicuro e unico per evitare sovrascritture
-            original_filename = secure_filename(file.filename)
-            unique_s3_key = f"notes/{uuid.uuid4()}-{original_filename}"
-
-            # Carica il file nel bucket S3
-            s3_client.upload_fileobj(
-                file,
-                S3_BUCKET,
-                unique_s3_key,
-                ExtraArgs={"ContentType": file.content_type}
-            )
-
-            # 5. Se l'upload ha successo, crea il record nel database SQL
-            new_note = Note(
-                title=title,
-                description=description,
-                s3_key=unique_s3_key, # Salva il riferimento al file su S3
-                course_id=int(course_id),
-                uploader_name=uploader_name if uploader_name else "Anonimo"
-            )
-            db.session.add(new_note)
-            db.session.commit()
-
-            # 6. Invia una risposta di successo al frontend
-            return jsonify({"message": "Appunto caricato con successo!"}), 201
-
-        except ClientError as e:
-            print(f"ERRORE AWS S3: {e}")
-            return jsonify({"error": "Errore durante il caricamento del file."}), 500
-        except Exception as e:
-            print(f"ERRORE GENERICO: {e}")
-            db.session.rollback() # Annulla le modifiche al DB se qualcosa va storto
-            return jsonify({"error": "Si è verificato un errore interno."}), 500
-    else:
-        # Questo errore appare se le credenziali S3 non sono impostate nel backend
-        return jsonify({"error": "Configurazione per l'upload non disponibile."}), 500
-    
-
-
-    # AGGIUNGI QUESTE DUE ROTTE IN app.py
-
-@app.route('/api/courses/<int:course_id>/notes', methods=['GET'])
-def get_notes_for_course(course_id):
-    """
-    Fornisce la lista di tutti gli appunti (metadati) per un dato corso,
-    ordinati dal più recente al più vecchio.
-    """
-    # Cerca nel DB tutti gli appunti per l'ID del corso
-    notes = Note.query.filter_by(course_id=course_id).order_by(Note.upload_date.desc()).all()
-    
-    # Se non ce ne sono, restituisce un messaggio che lo script interpreterà
-    if not notes:
-        return jsonify({"message": "Nessun appunto trovato per questo corso."}), 404
-        
-    # Restituisce la lista di appunti in formato JSON
-    return jsonify([note.to_dict() for note in notes]), 200
-
+            return jsonify({"error": "Errore interno durante il salvataggio dell'appunto."}), 500
+    return jsonify({"error": "Servizio di upload non configurato."}), 500
 
 @app.route('/api/notes/<int:note_id>/download', methods=['GET'])
-@login_required # Solo gli utenti loggati possono scaricare
+@login_required
 def download_note(note_id):
-    """
-    Genera un link temporaneo e sicuro (pre-signed URL) per scaricare
-    un file da S3.
-    """
-    # Trova l'appunto specifico nel DB
     note = Note.query.get_or_404(note_id)
-    
-    # Controlla che la configurazione S3 esista
     if not s3_client:
-        return jsonify({"error": "Configurazione S3 non disponibile"}), 500
-
+        return jsonify({"error": "Servizio di download non configurato."}), 500
     try:
-        # Genera un link sicuro per scaricare il file.
-        # Questo link scade dopo 300 secondi (5 minuti).
-        presigned_url = s3_client.generate_presigned_url(
-            'get_object',
-            Params={'Bucket': S3_BUCKET, 'Key': note.s3_key},
-            ExpiresIn=300 
-        )
-        # Restituisce il link al frontend
+        presigned_url = s3_client.generate_presigned_url('get_object', Params={'Bucket': S3_BUCKET, 'Key': note.s3_key}, ExpiresIn=300)
         return jsonify({"download_url": presigned_url})
-        
-    except ClientError as e:
-        print(f"ERRORE AWS S3 durante la generazione dell'URL: {e}")
-        return jsonify({"error": "Impossibile generare il link per il download"}), 500
-    
+    except Exception as e:
+        print(f"ERRORE DOWNLOAD: {e}")
+        return jsonify({"error": "Impossibile generare il link per il download."}), 500
 
 
-def serve_home():
 # --- ROTTE PER SERVIRE FILE STATICI ---
-
+@app.route('/')
+def serve_home():
     return send_from_directory('.', 'index.html')
 
 @app.route('/login.html')
