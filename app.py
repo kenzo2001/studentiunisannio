@@ -228,9 +228,70 @@ def get_degree_programs_by_department(department_id):
 
 # AGGIUNGI QUESTA ROTTA IN app.py
 
+# SOSTITUISCI LA VECCHIA FUNZIONE upload_note CON QUESTA
+
 @app.route('/api/upload_note', methods=['POST'])
-@login_required # Protegge la rotta, solo gli utenti loggati possono caricare
+@login_required
 def upload_note():
+    """
+    Gestisce la ricezione del modulo di upload, carica il file su S3
+    e salva i metadati nel database. (VERSIONE ROBUSTA)
+    """
+    if 'file' not in request.files:
+        return jsonify({"error": "Nessun file inviato nella richiesta"}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "Nessun file selezionato"}), 400
+
+    title = request.form.get('title')
+    course_id_str = request.form.get('course_id') # Ricevi l'ID come stringa
+    description = request.form.get('description', '')
+    uploader_name = request.form.get('uploader_name', 'Anonimo')
+
+    if not all([title, course_id_str, file]):
+        return jsonify({"error": "Titolo, materia e file sono campi obbligatori"}), 400
+
+    # --- VALIDAZIONE MIGLIORATA DELL'ID CORSO ---
+    try:
+        course_id = int(course_id_str)
+    except (ValueError, TypeError):
+        return jsonify({"error": f"L'ID della materia non è un numero valido: '{course_id_str}'"}), 400
+    # --- FINE VALIDAZIONE ---
+
+    if s3_client and file:
+        try:
+            original_filename = secure_filename(file.filename)
+            unique_s3_key = f"notes/{uuid.uuid4()}-{original_filename}"
+
+            s3_client.upload_fileobj(
+                file,
+                S3_BUCKET,
+                unique_s3_key,
+                ExtraArgs={"ContentType": file.content_type}
+            )
+
+            new_note = Note(
+                title=title,
+                description=description,
+                s3_key=unique_s3_key,
+                course_id=course_id, # Usa l'ID validato
+                uploader_name=uploader_name if uploader_name else "Anonimo"
+            )
+            db.session.add(new_note)
+            db.session.commit()
+
+            return jsonify({"message": "Appunto caricato con successo!"}), 201
+
+        except ClientError as e:
+            print(f"ERRORE AWS S3: {e}")
+            return jsonify({"error": "Errore durante il caricamento del file."}), 500
+        except Exception as e:
+            # Qui catturiamo errori come 'IntegrityError' se course_id non esiste nel DB
+            print(f"ERRORE GENERICO DURANTE L'UPLOAD: {e}")
+            db.session.rollback()
+            return jsonify({"error": "Si è verificato un errore interno. Controlla che la materia esista."}), 500
+    else:
+        return jsonify({"error": "Configurazione per l'upload non disponibile."}), 500
     """
     Gestisce la ricezione del modulo di upload, carica il file su S3
     e salva i metadati nel database.
