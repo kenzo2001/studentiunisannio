@@ -194,10 +194,10 @@ def get_departments():
     """
     try:
         # Interroga il database per ottenere tutti i record dalla tabella Department
-        all_departments = Course.query.order_by(Course.name).all()
+        all_departments = Department.query.order_by(Department.name).all()
         
         # Converte la lista di oggetti in un formato JSON e la restituisce
-        return jsonify([Course.to_dict() for department in all_departments]), 200
+        return jsonify([department.to_dict() for department in all_departments]), 200
     except Exception as e:
         # In caso di errore, lo stampa sul log del server e restituisce un errore generico
         print(f"Errore durante il recupero dei dipartimenti: {e}")
