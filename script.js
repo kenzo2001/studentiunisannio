@@ -401,4 +401,46 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     }
+    function onSignIn(googleUser) {
+  // Mostra un messaggio di attesa all'utente
+  const messageDiv = document.getElementById('login-message');
+  if (messageDiv) {
+    messageDiv.textContent = 'Verifica in corso...';
+    messageDiv.className = 'auth-message';
+  }
+
+  // Estrae il token di identità inviato da Google
+  const id_token = googleUser.credential;
+
+  // Invia il token al tuo backend per la verifica e il login/registrazione
+  fetch(`/api/google-login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ token: id_token })
+  })
+  .then(response => {
+    // Se la risposta del backend è positiva (OK)
+    if (response.ok) {
+      // Reindirizza l'utente alla home page
+      window.location.href = 'index.html';
+    } else {
+      // Altrimenti, mostra un errore
+      if (messageDiv) {
+        messageDiv.textContent = 'Login con Google fallito. Riprova.';
+        messageDiv.className = 'auth-message error';
+      }
+      console.error('Login con Google fallito dal backend.');
+    }
+  })
+  .catch(error => {
+    // Gestisce errori di rete
+    if (messageDiv) {
+        messageDiv.textContent = 'Errore di rete. Controlla la connessione.';
+        messageDiv.className = 'auth-message error';
+    }
+    console.error('Errore di rete:', error);
+  });
+}
 });

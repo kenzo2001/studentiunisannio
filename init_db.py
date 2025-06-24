@@ -1,5 +1,3 @@
-# init_db.py modificato
-
 import os
 from app import app, db, mongo, Department, DegreeProgram, Course, Note
 from werkzeug.security import generate_password_hash
@@ -18,9 +16,11 @@ def initialize_database():
         # 2. Popolamento Dipartimenti e Corsi di Laurea (solo se mancano)
         if not Department.query.first():
             print("INIT_DB: Popolando Dipartimenti e Corsi di Laurea...")
-            ding = Department(name='DING'); dst = Department(name='DST'); demm = Department(name='DEMM')
+            ding = Department(name='DING')
+            dst = Department(name='DST')
+            demm = Department(name='DEMM')
             db.session.add_all([ding, dst, demm])
-            db.session.commit() # Commit per rendere i dipartimenti disponibili
+            db.session.commit()
             db.session.add_all([
                 DegreeProgram(name='Ingegneria Energetica', department=ding),
                 DegreeProgram(name='Ingegneria Civile', department=ding),
@@ -36,24 +36,21 @@ def initialize_database():
         else:
             print("INIT_DB: Dipartimenti e Corsi di Laurea già presenti.")
 
-        # 3. POPOLAMENTO CONDIZIONALE DEGLI ESAMI (versione corretta)
-        # Questo blocco viene eseguito solo se non ci sono corsi nel database.
+        # 3. POPOLAMENTO CONDIZIONALE DEGLI ESAMI (solo se mancano)
         if not Course.query.first():
             print("INIT_DB: Nessun corso trovato. Eseguendo popolamento iniziale degli esami...")
             try:
-                # Recuperiamo i corsi di laurea per associare gli esami
                 ing_energetica = DegreeProgram.query.filter_by(name='Ingegneria Energetica').first()
                 ing_civile = DegreeProgram.query.filter_by(name='Ingegneria Civile').first()
                 ing_informatica = DegreeProgram.query.filter_by(name='Ingegneria Informatica').first()
                 ing_biomedica = DegreeProgram.query.filter_by(name='Ingegneria Biomedica').first()
 
                 if all([ing_energetica, ing_civile, ing_informatica, ing_biomedica]):
-                    # Inserisci qui la lista completa di tutti gli esami (la stessa che avevi prima)
                     db.session.add_all([
-                        # ... ESEMPIO ...
-                        Course(name='Analisi Matematica I', year=1, degree_program=ing_informatica),
-                        Course(name='Programmazione I', year=1, degree_program=ing_informatica),
-                        # ... INSERISCI QUI TUTTI GLI ALTRI CORSI COME NEL FILE ORIGINALE ...
+                        Course(name='Analisi Matematica I', year=1, degree_program=ing_energetica), Course(name='Fisica Generale I', year=1, degree_program=ing_energetica), Course(name='Geometria e Algebra Lineare', year=1, degree_program=ing_energetica), Course(name='Chimica', year=1, degree_program=ing_energetica), Course(name='Informatica', year=1, degree_program=ing_energetica), Course(name='Disegno Tecnico Industriale', year=1, degree_program=ing_energetica), Course(name='Analisi Matematica II', year=2, degree_program=ing_energetica), Course(name='Fisica Generale II', year=2, degree_program=ing_energetica), Course(name='Meccanica Razionale', year=2, degree_program=ing_energetica), Course(name='Termodinamica Applicata', year=2, degree_program=ing_energetica), Course(name='Fondamenti di Elettrotecnica', year=2, degree_program=ing_energetica), Course(name='Scienza delle Costruzioni', year=2, degree_program=ing_energetica), Course(name='Macchine a Fluido', year=3, degree_program=ing_energetica), Course(name='Impianti Termotecnici', year=3, degree_program=ing_energetica), Course(name='Economia ed Estimo Civile', year=3, degree_program=ing_energetica), Course(name='Energie Rinnovabili', year=3, degree_program=ing_energetica), Course(name='Sistemi Energetici', year=3, degree_program=ing_energetica), Course(name='Ingegneria della Sicurezza', year=3, degree_program=ing_energetica),
+                        Course(name='Analisi Matematica I', year=1, degree_program=ing_civile), Course(name='Fisica Generale I', year=1, degree_program=ing_civile), Course(name='Geometria e Algebra Lineare', year=1, degree_program=ing_civile), Course(name='Chimica', year=1, degree_program=ing_civile), Course(name='Informatica', year=1, degree_program=ing_civile), Course(name='Disegno', year=1, degree_program=ing_civile), Course(name='Analisi Matematica II', year=2, degree_program=ing_civile), Course(name='Fisica Generale II', year=2, degree_program=ing_civile), Course(name='Meccanica Razionale', year=2, degree_program=ing_civile), Course(name='Scienza delle Costruzioni', year=2, degree_program=ing_civile), Course(name='Geotecnica', year=2, degree_program=ing_civile), Course(name='Idraulica', year=2, degree_program=ing_civile), Course(name='Tecnica delle Costruzioni', year=3, degree_program=ing_civile), Course(name='Costruzioni Idrauliche', year=3, degree_program=ing_civile), Course(name='Topografia e Cartografia', year=3, degree_program=ing_civile), Course(name='Trasporti', year=3, degree_program=ing_civile), Course(name='Estimo', year=3, degree_program=ing_civile), Course(name='Urbanistica', year=3, degree_program=ing_civile),
+                        Course(name='Analisi Matematica I', year=1, degree_program=ing_informatica), Course(name='Fisica Generale I', year=1, degree_program=ing_informatica), Course(name='Geometria e Algebra Lineare', year=1, degree_program=ing_informatica), Course(name='Programmazione I', year=1, degree_program=ing_informatica), Course(name='Fondamenti di Informatica', year=1, degree_program=ing_informatica), Course(name='Calcolo Numerico', year=1, degree_program=ing_informatica), Course(name='Analisi Matematica II', year=2, degree_program=ing_informatica), Course(name='Fisica Generale II', year=2, degree_program=ing_informatica), Course(name='Architetture dei Calcolatori', year=2, degree_program=ing_informatica), Course(name='Sistemi Operativi', year=2, degree_program=ing_informatica), Course(name='Programmazione II', year=2, degree_program=ing_informatica), Course(name='Algoritmi e Strutture Dati', year=2, degree_program=ing_informatica), Course(name='Basi di Dati', year=3, degree_program=ing_informatica), Course(name='Reti di Calcolatori', year=3, degree_program=ing_informatica), Course(name='Ingegneria del Software', year=3, degree_program=ing_informatica), Course(name='Sicurezza dei Sistemi', year=3, degree_program=ing_informatica), Course(name='Intelligenza Artificiale', year=3, degree_program=ing_informatica), Course(name='Sistemi Distribuiti', year=3, degree_program=ing_informatica),
+                        Course(name='Analisi Matematica I', year=1, degree_program=ing_biomedica), Course(name='Fisica Generale I', year=1, degree_program=ing_biomedica), Course(name='Geometria e Algebra Lineare', year=1, degree_program=ing_biomedica), Course(name='Biologia', year=1, degree_program=ing_biomedica), Course(name='Chimica', year=1, degree_program=ing_biomedica), Course(name='Informatica', year=1, degree_program=ing_biomedica), Course(name='Analisi Matematica II', year=2, degree_program=ing_biomedica), Course(name='Fisica Generale II', year=2, degree_program=ing_biomedica), Course(name='Meccanica Razionale', year=2, degree_program=ing_biomedica), Course(name='Fisiologia', year=2, degree_program=ing_biomedica), Course(name='Elettrotecnica', year=2, degree_program=ing_biomedica), Course(name='Elettronica', year=2, degree_program=ing_biomedica), Course(name='Bioingegneria dei Sistemi', year=3, degree_program=ing_biomedica), Course(name='Strumentazione Biomedica', year=3, degree_program=ing_biomedica), Course(name='Elaborazione dei Segnali Biomedici', year=3, degree_program=ing_biomedica), Course(name='Modellistica e Simulazione', year=3, degree_program=ing_biomedica), Course(name='Materiali Biomedici', year=3, degree_program=ing_biomedica), Course(name='Bioetica e Legislazione', year=3, degree_program=ing_biomedica),
                     ])
                     db.session.commit()
                     print("INIT_DB: Inserimento iniziale degli esami di Ingegneria COMPLETATO.")
