@@ -10,7 +10,7 @@ import boto3
 from botocore.exceptions import NoCredentialsError, ClientError
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_pymongo import PyMongo
-from bson.objectid import ObjectId
+from bson.objectid import ObjectId # <-- AGGIUNTO
 
 print("DEBUG: Avvio app.py")
 
@@ -19,27 +19,28 @@ app = Flask(__name__, static_folder='.', static_url_path='/')
 # --- CONFIGURAZIONE ---
 # Chiave Segreta e Dominio Cookie
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'fallback-secret-key-per-sviluppo-locale')
-app.config['SESSION_COOKIE_DOMAIN'] = '.studentiunisannio.it'
+app.config['SESSION_COOKIE_DOMAIN'] = '.studentiunisannio.it' # Per produzione, setta None per locale
 
-# NUOVA RIGA DA AGGIUNGERE
+# Domini Email Permessi
 app.config['ALLOWED_EMAIL_DOMAINS'] = ['unisannio.it', 'studenti.unisannio.it']
 
-# Database SQL (PostgreSQL)
+# Database SQL (PostgreSQL) - Configurazione e inizializzazione
 db_url = os.environ.get('DATABASE_URL')
 if db_url:
     app.config['SQLALCHEMY_DATABASE_URI'] = db_url.replace('postgres://', 'postgresql+psycopg2://')
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///unisannio_appunti.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
+db = SQLAlchemy(app) # Inizializza db con l'app dopo la configurazione
 
-# Database NoSQL (MongoDB) per gli utenti
+# Database NoSQL (MongoDB) per gli utenti - Configurazione e inizializzazione
 mongo_uri_from_env = os.environ.get("MONGO_URI")
 print(f"DEBUG: La MONGO_URI letta dall'ambiente è: {mongo_uri_from_env}")
-app.config["MONGO_URI"] = mongo_uri_from_env
-mongo = PyMongo(app)
+app.config["MONGO_URI"] = mongo_uri_from_env # Imposta la MONGO_URI nell'app.config
+mongo = PyMongo(app) # Inizializza PyMongo con l'app dopo la configurazione
 
-# AWS S3
+
+# AWS S3 - Inizializzazione client
 S3_BUCKET = os.environ.get("S3_BUCKET_NAME")
 S3_KEY = os.environ.get("AWS_ACCESS_KEY_ID")
 S3_SECRET = os.environ.get("AWS_SECRET_ACCESS_KEY")
@@ -48,28 +49,42 @@ s3_client = None
 if S3_KEY and S3_SECRET and S3_REGION and S3_BUCKET:
     try:
         s3_client = boto3.client('s3', aws_access_key_id=S3_KEY, aws_secret_access_key=S3_SECRET, region_name=S3_REGION)
+        print("DEBUG: Client S3 inizializzato con successo.")
     except Exception as e:
         print(f"ERRORE DEBUG: Errore inizializzazione client S3: {e}")
 else:
-    print("ERRORE DEBUG: Variabili d'ambiente AWS S3 non impostate.")
+    print("ERRORE DEBUG: Variabili d'ambiente AWS S3 non impostate. Le operazioni S3 falliranno.")
 
-# Flask-Login
+# Flask-Login - Inizializzazione
 login_manager = LoginManager()
 login_manager.init_app(app)
 
 # --- MODELLI ---
 
-# Modello Utente per MongoDB (da Modello A)
+# Modello Utente per MongoDB 
 class User(UserMixin):
     def __init__(self, user_data):
-        self.id = str(user_data.get('_id'))
-        self.username = user_data.get('username')
-        self.email = user_data.get('email')
-        self.password_hash = user_data.get('password_hash')
-    def to_dict(self):
-        return {"id": self.id, "username": self.username, "email": self.email}
+        self.user_data = user_data # Conserva i dati grezzi da MongoDB
+        self.id = str(user_data.get('_id')) # L'ID utente di Flask-Login deve essere una stringa
 
-# Modelli Dati per SQL (da Modello B)
+    def to_dict(self):
+        return {"id": self.id, "username": self.user_data.get('username'), "email": self.user_data.get('email')}
+
+    # Metodi richiesti da UserMixin
+    def get_id(self):
+        return self.id
+
+    def is_active(self):
+        return self.user_data.get('is_active', True) # Aggiungi un campo is_active in MongoDB se vuoi disattivare utenti
+
+    def is_anonymous(self):
+        return False
+
+    def is_authenticated(self):
+        return True
+
+
+# Modelli Dati per SQL (Department, DegreeProgram, Course, Note)
 class Department(db.Model):
     __tablename__ = 'departments'
     id = db.Column(db.Integer, primary_key=True)
@@ -105,12 +120,17 @@ class Note(db.Model):
     uploader_name = db.Column(db.String(80), nullable=True)
     def to_dict(self): return {"id": self.id, "title": self.title, "description": self.description, "s3_key": self.s3_key, "upload_date": self.upload_date.isoformat(), "course_id": self.course_id, "uploader_name": self.uploader_name}
 
-# --- GESTIONE SESSIONE UTENTE (da Modello A) ---
+# --- GESTIONE SESSIONE UTENTE ---
 
 @login_manager.user_loader
 def load_user(user_id):
-    user_data = mongo.db.users.find_one({"_id": ObjectId(user_id)})
-    return User(user_data) if user_data else None
+    # Cerca l'utente in MongoDB
+    try:
+        user_data = mongo.db.users.find_one({"_id": ObjectId(user_id)})
+        return User(user_data) if user_data else None
+    except Exception as e:
+        print(f"ERRORE DEBUG: load_user fallito: {e}")
+        return None
 
 @login_manager.unauthorized_handler
 def unauthorized():
@@ -120,7 +140,7 @@ def unauthorized():
 
 # --- ROTTE API ---
 
-# API Utenti che usano MongoDB (da Modello A)
+# API Utenti (usano MongoDB)
 @app.route('/api/register', methods=['POST'])
 def register():
     data = request.get_json()
@@ -129,22 +149,36 @@ def register():
     password = data.get('password')
     if not all([username, email, password]):
         return jsonify({"error": "Dati mancanti"}), 400
+
+    # Validazione del dominio email
+    allowed_domains = app.config.get('ALLOWED_EMAIL_DOMAINS', [])
+    email_domain = email.split('@')[-1]
+    if allowed_domains and email_domain not in allowed_domains:
+        return jsonify({"error": f"Registrazione non consentita per il dominio {email_domain}."}), 403
+
     if mongo.db.users.find_one({"username": username}):
         return jsonify({"error": "Username già in uso"}), 409
     if mongo.db.users.find_one({"email": email}):
         return jsonify({"error": "Email già in uso"}), 409
-    mongo.db.users.insert_one({
-        "username": username,
-        "email": email,
-        "password_hash": generate_password_hash(password)
-    })
-    return jsonify({"message": "Registrazione avvenuta con successo!"}), 201
+    
+    try:
+        mongo.db.users.insert_one({
+            "username": username,
+            "email": email,
+            "password_hash": generate_password_hash(password)
+        })
+        return jsonify({"message": "Registrazione avvenuta con successo!"}), 201
+    except Exception as e:
+        print(f"ERRORE REGISTRAZIONE DB: {e}")
+        return jsonify({"error": "Errore durante la registrazione."}), 500
+
 
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
+    
     user_data = mongo.db.users.find_one({"username": username})
     if user_data and check_password_hash(user_data['password_hash'], password):
         user_obj = User(user_data)
@@ -165,7 +199,7 @@ def get_status():
     else:
         return jsonify({"logged_in": False}), 200
 
-# API Dati che usano SQL (prese e adattate da Modello B)
+# API Dati che usano SQL (Department, DegreeProgram, Course, Note)
 @app.route('/api/departments', methods=['GET'])
 def get_departments():
     departments = Department.query.order_by(Department.name).all()
