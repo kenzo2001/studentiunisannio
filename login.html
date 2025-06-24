@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <meta name="robots" content="noindex, follow">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -56,6 +57,17 @@
                     <label for="password">Password:</label>
                     <input type="password" id="password" name="password" required>
                 </div>
+                <div id="g_id_onload"
+             data-client_id="775415705920-3ecpmu56s4emoihju1i39rp2o916qnjc.apps.googleusercontent.com"
+             data-callback="onSignIn">
+        </div>
+        <div class="g_id_signin"
+             data-type="standard"
+             data-theme="outline"
+             data-text="sign_in_with"
+             data-size="large"
+             data-logo_alignment="left">
+        </div>
                 <button type="submit" class="auth-submit-btn">Accedi</button>
             </form>
             <div id="login-message" class="auth-message"></div>

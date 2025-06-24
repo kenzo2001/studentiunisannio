@@ -11,6 +11,8 @@ from botocore.exceptions import NoCredentialsError, ClientError
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_pymongo import PyMongo
 from bson.objectid import ObjectId
+from google.oauth2 import id_token
+from google.auth.transport import requests
 
 print("DEBUG: Avvio app.py")
 
@@ -119,6 +121,39 @@ def unauthorized():
     return redirect(url_for('serve_login_page'))
 
 # --- ROTTE API ---
+@app.route('/api/google-login', methods=['POST'])
+def google_login():
+    try:
+        data = request.get_json()
+        token = data['token']
+
+        # Verifica il token con Google
+        idinfo = id_token.verify_oauth2_token(token, requests.Request(), os.environ.get('GOOGLE_CLIENT_ID'))
+
+        # Ottieni le informazioni dell'utente dal token
+        user_email = idinfo['email']
+        user_name = idinfo.get('name', '')
+
+        # Controlla se l'utente esiste, altrimenti creane uno nuovo
+        user_data = mongo.db.users.find_one({"email": user_email})
+        if not user_data:
+            # Crea un nuovo utente con una password casuale poiché non verrà utilizzata
+            hashed_password = generate_password_hash(os.urandom(24))
+            user_data = {
+                "username": user_name,
+                "email": user_email,
+                "password_hash": hashed_password
+            }
+            mongo.db.users.insert_one(user_data)
+            user_data = mongo.db.users.find_one({"email": user_email})
+
+        user = User(user_data)
+        login_user(user)
+        return jsonify({"message": "Login successful"}), 200
+
+    except ValueError:
+        # Token non valido
+        return "Token non valido", 401
 
 # API Utenti che usano MongoDB (da Modello A)
 @app.route('/api/register', methods=['POST'])

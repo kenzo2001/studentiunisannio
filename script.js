@@ -7,7 +7,26 @@ document.addEventListener('DOMContentLoaded', function() {
         'informatica': 3,
         'biomedica': 4
     };
+    // funzione di accesso con google 
 
+
+    function onSignIn(googleUser) {
+  var id_token = googleUser.credential;
+  fetch(`${API_BASE_URL}/api/google-login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({token: id_token})
+  }).then(response => {
+    if (response.ok) {
+      window.location.href = 'index.html';
+    } else {
+      // Gestisci l'errore di login
+      console.error('Login con Google fallito.');
+    }
+  });
+}
     // --- FUNZIONI GLOBALI ESEGUITE SU TUTTE LE PAGINE ---
 
     function activateMainTabAndHeader() {
