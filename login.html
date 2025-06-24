@@ -47,6 +47,7 @@
     <main>
         <div class="auth-form-container">
             <h2>Login</h2>
+            
             <form id="loginForm">
                 <div class="form-group">
                     <label for="username">Username:</label>
@@ -56,39 +57,39 @@
                     <label for="password">Password:</label>
                     <input type="password" id="password" name="password" required>
                 </div>
-                <div id="g_id_onload"
-             data-client_id="775415705920-3ecpmu56s4emoihju1i39rp2o916qnjc.apps.googleusercontent.com"
-             data-callback="onSignIn">
-        </div>
-        <div class="g_id_signin"
-             data-type="standard"
-             data-theme="outline"
-             data-text="sign_in_with"
-             data-size="large"
-             data-logo_alignment="left">
-        </div>
                 <button type="submit" class="auth-submit-btn">Accedi</button>
             </form>
-            <div id="login-message" class="auth-message"></div>
-            <p class="switch-link">Non hai un account? <a href="register.html">Registrati qui</a></p>
+
+            <p style="text-align:center; margin: 20px 0; font-weight: 600; color: #a0aec0;">oppure</p>
+
+            <div id="g_id_onload"
+                 data-client_id="775415705920-3ecpmu56s4emoihju1i39rp2o916qnjc.apps.googleusercontent.com"
+                 data-callback="onSignIn">
+            </div>
+            <div style="display: flex; justify-content: center;">
+                 <div class="g_id_signin"
+                      data-type="standard"
+                      data-theme="outline"
+                      data-text="continue_with"
+                      data-size="large"
+                      data-logo_alignment="left">
+                 </div>
+            </div>
+            <p style="font-size: 0.85em; text-align: center; color: #718096; margin-top: 10px;">
+                Usa la tua email istituzionale per accedere o registrarti in un unico passaggio.
+            </p>
+
+            <div id="login-message" class="auth-message" style="margin-top: 20px;"></div>
+            
+            <p class="switch-link">Non hai un account? <a href="register.html">Registrati qui con username e password</a></p>
         </div>
     </main>
 
     <footer>
-        <div class="adsense-container">
-            <ins class="adsbygoogle"
-                 style="display:block"
-                 data-ad-client="ca-pub-8614560189633962"
-                 data-ad-slot="1234567890"
-                 data-ad-format="auto"
-                 data-full-width-responsive="true"></ins>
-            <script> (adsbygoogle = window.adsbygoogle || []).push({}); </script>
-        </div>
-         <p>Per informazioni sull'associazione: <a href="mailto:cusas1991@gmail.com" style="color: white;">cusas1991@gmail.com</a></p>
+        <p>Per informazioni sull'associazione: <a href="mailto:cusas1991@gmail.com" style="color: white;">cusas1991@gmail.com</a></p>
         <p>Per supporto tecnico sul sito: <a href="mailto:francescoenzoalloro@gmail.com" style="color: white;">francescoenzoalloro@gmail.com</a></p>
         <p>&copy; 2025 Studenti Unisannio - Tutti i diritti riservati.</p>
         <p>Powered by cusas engegnering</p>
-    
     </footer>
 
     <script src="script.js"></script>

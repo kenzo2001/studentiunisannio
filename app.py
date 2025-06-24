@@ -125,6 +125,55 @@ def unauthorized():
 def google_login():
     try:
         data = request.get_json()
+        token = data.get('token')
+        if not token:
+            return jsonify({"error": "Token mancante"}), 400
+
+        # Verifica il token con Google
+        idinfo = id_token.verify_oauth2_token(token, requests.Request(), os.environ.get('GOOGLE_CLIENT_ID'))
+
+        # Ottieni le informazioni dell'utente dal token
+        user_email = idinfo['email']
+        
+        # --- NUOVO BLOCCO DI CONTROLLO DOMINIO ---
+        domain = user_email.split('@')[-1]
+        if domain not in current_app.config['ALLOWED_EMAIL_DOMAINS']:
+            return jsonify({
+                "error": "Accesso consentito solo con email istituzionali (@unisannio.it o @studenti.unisannio.it)."
+            }), 403 # 403 Forbidden
+        # --- FINE BLOCCO DI CONTROLLO ---
+
+        user_name = idinfo.get('name', user_email.split('@')[0]) # Usa il nome o la parte locale dell'email
+
+        # Controlla se l'utente esiste, altrimenti creane uno nuovo (funzione di registrazione)
+        user_data = mongo.db.users.find_one({"email": user_email})
+        if not user_data:
+            print(f"INIT_DB: Creazione nuovo utente da Google: {user_email}")
+            # Crea un nuovo utente con una password casuale poiché non verrà utilizzata
+            hashed_password = generate_password_hash(os.urandom(24).hex())
+            new_user_data = {
+                "username": user_name,
+                "email": user_email,
+                "password_hash": hashed_password,
+                "source": "google" # Opzionale: per tracciare la provenienza dell'utente
+            }
+            mongo.db.users.insert_one(new_user_data)
+            user_data = mongo.db.users.find_one({"email": user_email})
+
+        user = User(user_data)
+        login_user(user)
+        return jsonify({"message": "Login/Registrazione avvenuta con successo"}), 200
+
+    except ValueError:
+        # Token non valido
+        return jsonify({"error": "Token Google non valido o scaduto."}), 401
+    except Exception as e:
+        print(f"ERRORE GOOGLE LOGIN: {e}")
+        return jsonify({"error": "Si è verificato un errore interno."}), 500
+
+
+    try:
+        data = request.get_json()
         token = data['token']
 
         # Verifica il token con Google
@@ -158,6 +207,34 @@ def google_login():
 # API Utenti che usano MongoDB (da Modello A)
 @app.route('/api/register', methods=['POST'])
 def register():
+    data = request.get_json()
+    username = data.get('username')
+    email = data.get('email')
+    password = data.get('password')
+
+    if not all([username, email, password]):
+        return jsonify({"error": "Dati mancanti"}), 400
+
+    # --- NUOVO BLOCCO DI CONTROLLO DOMINIO ---
+    domain = email.split('@')[-1]
+    if domain not in current_app.config.get('ALLOWED_EMAIL_DOMAINS', []):
+        return jsonify({
+            "error": "Registrazione permessa solo con email istituzionali (@unisannio.it o @studenti.unisannio.it)."
+        }), 403 # 403 Forbidden
+    # --- FINE BLOCCO DI CONTROLLO ---
+
+    if mongo.db.users.find_one({"username": username}):
+        return jsonify({"error": "Username già in uso"}), 409
+    if mongo.db.users.find_one({"email": email}):
+        return jsonify({"error": "Email già in uso"}), 409
+
+    mongo.db.users.insert_one({
+        "username": username,
+        "email": email,
+        "password_hash": generate_password_hash(password),
+        "source": "manual" # Opzionale: per tracciare la provenienza
+    })
+    return jsonify({"message": "Registrazione avvenuta con successo!"}), 201
     data = request.get_json()
     username = data.get('username')
     email = data.get('email')
