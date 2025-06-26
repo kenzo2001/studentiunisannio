@@ -18,43 +18,40 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- FUNZIONI GLOBALI ESEGUITE SU TUTTE LE PAGINE ---
 
     // ============== Logica per il Pop-up Donazioni ==============
-    if (currentPage === 'index.html' || currentPage === '') {
-        const modalOverlay = document.getElementById('donation-modal-overlay');
-        const closeModalBtn = document.getElementById('modal-close-btn');
+if (currentPage === 'index.html' || currentPage === '') {
+    const modalOverlay = document.getElementById('donation-modal-overlay');
+    const closeModalBtn = document.getElementById('modal-close-btn');
 
-        // Controlla se il pop-up è già stato mostrato
-        const popupShown = localStorage.getItem('donationPopupShown');
-
-        if (!popupShown && modalOverlay) {
-            // Mostra il pop-up dopo 3 secondi per non essere troppo invasivo
-            setTimeout(() => {
-                modalOverlay.style.display = 'flex';
-                // Memorizza che abbiamo mostrato il pop-up
-                localStorage.setItem('donationPopupShown', 'true');
-            }, 3000);
-        }
-
-        // Funzione per chiudere il pop-up
-        const closeModal = () => {
-            if (modalOverlay) {
-                modalOverlay.style.display = 'none';
-            }
-        };
-
-        // Event listener per chiudere cliccando sulla 'X'
-        if (closeModalBtn) {
-            closeModalBtn.addEventListener('click', closeModal);
-        }
-
-        // Event listener per chiudere cliccando sullo sfondo
-        if (modalOverlay) {
-            modalOverlay.addEventListener('click', function(event) {
-                if (event.target === modalOverlay) {
-                    closeModal();
-                }
-            });
-        }
+    // La condizione che controllava localStorage è stata rimossa.
+    // Mostra il pop-up dopo 3 secondi ad ogni visita della pagina.
+    if (modalOverlay) {
+        setTimeout(() => {
+            modalOverlay.style.display = 'flex';
+        }, 3000);
     }
+
+    // Funzione per chiudere il pop-up
+    const closeModal = () => {
+        if (modalOverlay) {
+            modalOverlay.style.display = 'none';
+        }
+    };
+
+    // Event listener per chiudere cliccando sulla 'X'
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeModal);
+    }
+
+    // Event listener per chiudere cliccando sullo sfondo
+    if (modalOverlay) {
+        modalOverlay.addEventListener('click', function(event) {
+            if (event.target === modalOverlay) {
+                closeModal();
+            }
+        });
+    }
+}
+// =======================================================================
     // ==========================================================
     function activateMainTabAndHeader() {
         const navLinks = document.querySelectorAll('.navbar a');
