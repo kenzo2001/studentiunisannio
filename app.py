@@ -42,9 +42,15 @@ db = SQLAlchemy(app)
 
 # Database NoSQL (MongoDB) per gli utenti
 mongo_uri_from_env = os.environ.get("MONGO_URI")
+if not mongo_uri_from_env:
+    raise ValueError("ERRORE CRITICO: La variabile d'ambiente MONGO_URI non è stata trovata. "
+                     "Assicurati che il file .env esista nella cartella principale e sia nominato correttamente.")
+
 print(f"DEBUG: La MONGO_URI letta dall'ambiente è: {mongo_uri_from_env}")
+
 app.config["MONGO_URI"] = mongo_uri_from_env
-mongo = PyMongo(app)
+mongo = PyMongo() # 1. Crea un'istanza vuota di PyMongo
+mongo.init_app(app) # 2. Inizializzala con l'applicazione
 
 # AWS S3
 S3_BUCKET = os.environ.get("S3_BUCKET_NAME")
