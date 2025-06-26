@@ -10,3 +10,5 @@ flask-pymongo
 pymongo<4.0
 google-auth
 requests
+dnspython  # <-- AGGIUNGI QUESTA RIGA
+python-dotenv
