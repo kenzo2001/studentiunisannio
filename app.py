@@ -13,7 +13,12 @@ from flask_pymongo import PyMongo
 from bson.objectid import ObjectId
 from google.oauth2 import id_token
 from google.auth.transport import requests
+# Inizio del file app.py
+from dotenv import load_dotenv # Aggiungi questa linea
 
+load_dotenv() # Aggiungi questa linea
+
+from flask import Flask, jsonify, request, send_from_directory, redirect, url_for, session, current_app
 print("DEBUG: Avvio app.py")
 
 app = Flask(__name__, static_folder='.', static_url_path='/')

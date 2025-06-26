@@ -1,0 +1,39 @@
+# Apri il terminale nella cartella principale del tuo progetto
+
+# Crea un ambiente virtuale (eseguire solo la prima volta)
+python -m venv venv
+
+# Attiva l'ambiente virtuale
+# Su Windows:
+venv\Scripts\activate
+# Su macOS/Linux:
+source venv/bin/activate
+
+# Installa tutte le librerie necessarie
+pip install -r requirements.txt
+
+
+
+
+
+comandi git:
+# Aggiungi i file che hai modificato
+git add .
+
+# Crea un commit con un messaggio descrittivo
+git commit -m "Descrizione delle modifiche di test"
+
+# Invia (push) le modifiche al nuovo branch 'develop' su GitHub
+git push origin develop
+
+
+
+# Passa al branch 'develop' per iniziare a lavorarci
+git checkout develop
+
+
+# Torna al branch principale
+git checkout main
+
+# Unisci le modifiche da 'develop' in 'main'
+git merge develop
