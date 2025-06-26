@@ -1,6 +1,13 @@
 document.addEventListener('DOMContentLoaded', function() {
     const currentPage = window.location.pathname.split('/').pop();
-    const API_BASE_URL = 'https://studentiunisannio.it';
+
+    // --- MODIFICA CHIAVE QUI ---
+    // Imposta dinamicamente l'URL dell'API in base all'ambiente
+    const isLocal = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+    const API_BASE_URL = isLocal ? 'http://127.0.0.1:5000' : 'https://studentiunisannio.it';
+    // Quando sei in locale, tutte le chiamate API saranno fatte a http://127.0.0.1:5000/api/...
+    // Quando il sito sarà online, le chiamate saranno fatte a https://studentiunisannio.it/api/...
+    
     const degreeProgramIds = {
         'energetica': 1,
         'civile': 2,
@@ -10,6 +17,45 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- FUNZIONI GLOBALI ESEGUITE SU TUTTE LE PAGINE ---
 
+    // ============== Logica per il Pop-up Donazioni ==============
+    if (currentPage === 'index.html' || currentPage === '') {
+        const modalOverlay = document.getElementById('donation-modal-overlay');
+        const closeModalBtn = document.getElementById('modal-close-btn');
+
+        // Controlla se il pop-up è già stato mostrato
+        const popupShown = localStorage.getItem('donationPopupShown');
+
+        if (!popupShown && modalOverlay) {
+            // Mostra il pop-up dopo 3 secondi per non essere troppo invasivo
+            setTimeout(() => {
+                modalOverlay.style.display = 'flex';
+                // Memorizza che abbiamo mostrato il pop-up
+                localStorage.setItem('donationPopupShown', 'true');
+            }, 3000);
+        }
+
+        // Funzione per chiudere il pop-up
+        const closeModal = () => {
+            if (modalOverlay) {
+                modalOverlay.style.display = 'none';
+            }
+        };
+
+        // Event listener per chiudere cliccando sulla 'X'
+        if (closeModalBtn) {
+            closeModalBtn.addEventListener('click', closeModal);
+        }
+
+        // Event listener per chiudere cliccando sullo sfondo
+        if (modalOverlay) {
+            modalOverlay.addEventListener('click', function(event) {
+                if (event.target === modalOverlay) {
+                    closeModal();
+                }
+            });
+        }
+    }
+    // ==========================================================
     function activateMainTabAndHeader() {
         const navLinks = document.querySelectorAll('.navbar a');
         const header = document.querySelector('header');
@@ -158,15 +204,12 @@ document.addEventListener('DOMContentLoaded', function() {
         container.innerHTML = `<h3 style="color: black;">Caricamento corsi ${year}° Anno per Ingegneria ${degreeName}...</h3>`;
         fetch(`${API_BASE_URL}/api/degree_programs/${degreeProgramId}/courses/${year}`)
             .then(response => {
-                // Se la risorsa non è trovata (404), è un caso valido (nessun corso per quell'anno), quindi restituisci un array vuoto.
                 if (response.status === 404) {
                     return [];
                 }
-                // Per tutti gli altri errori (es. 500 Internal Server Error), lancia un errore per attivare il blocco .catch().
                 if (!response.ok) {
                     throw new Error(`Errore dal server: ${response.status}`);
                 }
-                // Altrimenti, procedi con il parsing del JSON.
                 return response.json();
             })
             .then(coursesData => {
@@ -392,36 +435,36 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// *** FUNZIONE GLOBALE PER IL LOGIN CON GOOGLE ***
 function onSignIn(googleUser) {
-  const messageDiv = document.getElementById('login-message');
-  if (messageDiv) {
-    messageDiv.textContent = 'Verifica in corso...';
-    messageDiv.className = 'auth-message';
-  }
-
-  const id_token = googleUser.credential;
+    const isLocal = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+    const API_BASE_URL = isLocal ? 'http://127.0.0.1:5000' : 'https://studentiunisannio.it';
   
-  fetch(`https://studentiunisannio.it/api/google-login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ token: id_token })
-  })
-  .then(response => {
-    if (response.ok) {
-      window.location.href = 'index.html';
-    } else {
-      return response.json().then(err => {
-          throw new Error(err.error || 'Login con Google fallito.');
-      });
-    }
-  })
-  .catch(error => {
+    const messageDiv = document.getElementById('login-message') || document.getElementById('register-message');
     if (messageDiv) {
-        messageDiv.textContent = `Errore: ${error.message}`;
-        messageDiv.className = 'auth-message error';
+        messageDiv.textContent = 'Verifica in corso...';
+        messageDiv.className = 'auth-message';
     }
-    console.error('Errore durante il login con Google:', error);
-  });
+
+    const id_token = googleUser.credential;
+  
+    fetch(`${API_BASE_URL}/api/google-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: id_token })
+    })
+    .then(response => {
+        if (response.ok) {
+            window.location.href = 'index.html';
+        } else {
+            return response.json().then(err => { throw new Error(err.error || 'Login con Google fallito.'); });
+        }
+    })
+    .catch(error => {
+        if (messageDiv) {
+            messageDiv.textContent = `Errore: ${error.message}`;
+            messageDiv.className = 'auth-message error';
+        }
+        console.error('Errore durante il login con Google:', error);
+    });
 }
