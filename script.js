@@ -43,9 +43,9 @@ document.addEventListener('DOMContentLoaded', function() {
         let theme = '';
         let activeNavLinkId = '';
 
-        if (currentPage === '' || currentPage === 'index.html') {
-            theme = 'home';
-            activeNavLinkId = 'nav-home';
+        if (currentPage === '' || currentPage === 'index.html' || currentPage === 'upload_note.html') {
+             theme = 'home';
+             activeNavLinkId = 'nav-home';
         } else if (isIngPage || currentPage === 'ding.html') {
             theme = 'ding';
             activeNavLinkId = 'nav-ding';
@@ -55,28 +55,23 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (currentPage === 'demm.html') {
             theme = 'demm';
             activeNavLinkId = 'nav-demm';
-        } else { // Fallback for auth pages etc, which we can theme as DING
+        } else {
+            // Fallback per altre pagine come login/register
             theme = 'ding';
             activeNavLinkId = 'nav-ding';
         }
-
-        // Apply theme
+        
+        // Applica il tema
         header.classList.add(`header-${theme}`);
         navbar.classList.add(`navbar-${theme}`);
         body.classList.add(`page-${theme}`);
 
-        // Set active link
         const activeLink = document.getElementById(activeNavLinkId);
         if (activeLink) {
-            // The active class name should match the theme color
             const activeClass = `active-${theme}`;
             activeLink.classList.add(activeClass);
         }
     }
-
-    // The rest of the script (updateUserStatusNavbar, loadCoursesForYear, etc.)
-    // should be the same as the one I provided in the previous response.
-    // I'm including the full script again for clarity.
     
     async function updateUserStatusNavbar() {
         const userStatusElement = document.getElementById('user-status');
@@ -138,9 +133,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 notesHtml += `</div>`;
                 containerElement.innerHTML = notesHtml;
-                // ... (event listeners for download)
+
+                containerElement.querySelectorAll('.download-note-btn').forEach(button => {
+                    button.addEventListener('click', function(event) {
+                        event.preventDefault();
+                        const apiUrl = this.href;
+                        fetch(apiUrl)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.download_url) {
+                                    window.open(data.download_url, '_blank');
+                                } else {
+                                    alert('Impossibile ottenere il link per il download.');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Errore recupero link download:', error);
+                                alert('Si è verificato un errore di rete.');
+                            });
+                    });
+                });
             })
-            .catch(error => { /* ... */ });
+            .catch(error => {
+                console.error('Errore caricamento appunti:', error);
+                containerElement.innerHTML = `<p style="color: black;">Errore nel caricamento degli appunti.</p>`;
+            });
     }
 
     function loadCoursesForYear(degreeProgramId, year, container, degreeName) {
@@ -189,7 +206,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 });
             })
-            .catch(error => { /* ... */ });
+            .catch(error => {
+                console.error('Errore caricamento corsi:', error);
+                container.innerHTML = `<h3 style="color: black;">Errore nel caricamento dei corsi.</h3><p>${error.message}</p>`;
+            });
     }
 
     window.openYearTab = function(evt, tabName) {
@@ -217,24 +237,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // --- ESECUZIONE ALL'AVVIO ---
-    
-    activateMainTabAndHeader();
-    updateUserStatusNavbar();
-    
-    const isCoursePage = currentPage.startsWith('ing_') || ['scienze_biologiche.html', 'biotecnologie.html', 'scienze_naturali.html', 'scienze_motorie.html'].includes(currentPage);
-    if (isCoursePage && document.querySelector('.year-tabs button')) {
-        document.querySelector('.year-tabs button').click();
-    }
-
-    if ((currentPage.startsWith('ing_') || currentPage.startsWith('scienze_') || currentPage.startsWith('biotecnologie')) && document.querySelector('.year-tabs button')) {
-        document.querySelector('.year-tabs button').click();
-    }
-
-    if (['upload_note.html', 'login.html', 'register.html'].includes(currentPage)) {
-        setupAuthAndUploadPages();
-    }
-
     function setupAuthAndUploadPages() {
         if (currentPage === 'upload_note.html') {
             const uploadForm = document.getElementById('uploadNoteForm');
@@ -312,105 +314,104 @@ document.addEventListener('DOMContentLoaded', function() {
             loadDepartments();
         }
 
-        if (currentPage === 'login.html') {
-            const loginForm = document.getElementById('loginForm');
-            const messageDiv = document.getElementById('login-message');
-            loginForm.addEventListener('submit', async function(e) {
+        if (currentPage === 'login.html' || currentPage === 'register.html') {
+            const form = document.getElementById('loginForm') || document.getElementById('registerForm');
+            const messageDiv = document.getElementById('login-message') || document.getElementById('register-message');
+            
+            form.addEventListener('submit', async function(e) {
                 e.preventDefault();
-                messageDiv.textContent = 'Accesso in corso...';
-                const username = e.target.username.value;
-                const password = e.target.password.value;
+                const isRegister = form.id === 'registerForm';
+                const endpoint = isRegister ? '/api/register' : '/api/login';
+                messageDiv.textContent = isRegister ? 'Registrazione in corso...' : 'Accesso in corso...';
+                
+                const formData = new FormData(form);
+                const data = Object.fromEntries(formData.entries());
+
+                if (isRegister && data.password !== data.confirm_password) {
+                    messageDiv.textContent = 'Le password non corrispondono.';
+                    messageDiv.className = 'auth-message error';
+                    return;
+                }
+
                 try {
-                    const response = await fetch(`${API_BASE_URL}/api/login`, {
+                    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username, password })
+                        body: JSON.stringify(data)
                     });
                     const result = await response.json();
                     if (response.ok) {
-                        window.location.href = 'index.html';
+                        if(isRegister){
+                            messageDiv.textContent = 'Registrazione avvenuta con successo! Puoi effettuare il login.';
+                            messageDiv.className = 'auth-message success';
+                            form.reset();
+                        } else {
+                            window.location.href = 'index.html';
+                        }
                     } else {
-                        messageDiv.textContent = `Errore: ${result.error || 'Login fallito'}`;
+                        messageDiv.textContent = `Errore: ${result.error || 'Operazione fallita'}`;
                         messageDiv.className = 'auth-message error';
                     }
                 } catch (error) {
-                    messageDiv.textContent = 'Errore di rete. Riprova.';
+                    messageDiv.textContent = `Errore di rete: ${error.message}`;
                     messageDiv.className = 'auth-message error';
                 }
             });
         }
-
-        if (currentPage === 'register.html') {
-            const registerForm = document.getElementById('registerForm');
-            const messageDiv = document.getElementById('register-message');
-            registerForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                messageDiv.textContent = 'Registrazione in corso...';
-                const username = e.target.username.value;
-                const email = e.target.email.value;
-                const password = e.target.password.value;
-                const confirmPassword = e.target.confirm_password.value;
-
-                if (password !== confirmPassword) {
-                    messageDiv.textContent = 'Le password non corrispondono.';
-                    messageDiv.className = 'error';
-                    return;
-                }
-
-                 try {
-                    const response = await fetch(`${API_BASE_URL}/api/register`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username, email, password })
-                    });
-                    const result = await response.json();
-                    if (response.ok) {
-                         messageDiv.textContent = 'Registrazione avvenuta con successo! Puoi effettuare il login.';
-                         messageDiv.className = 'success';
-                         registerForm.reset();
-                    } else {
-                        messageDiv.textContent = `Errore: ${result.error || 'Registrazione fallita'}`;
-                        messageDiv.className = 'error';
-                    }
-                } catch (error) {
-                    messageDiv.textContent = `Errore di rete: ${error.message}`;
-                    messageDiv.className = 'error';
-                }
-            });
-        }
     }
-});
-
-// *** FUNZIONE GLOBALE PER IL LOGIN CON GOOGLE ***
-function onSignIn(googleUser) {
-    const isLocal = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
-    const API_BASE_URL = isLocal ? 'http://127.0.0.1:5000' : 'https://studentiunisannio.it';
-  
-    const messageDiv = document.getElementById('login-message') || document.getElementById('register-message');
-    if (messageDiv) {
-        messageDiv.textContent = 'Verifica in corso...';
-        messageDiv.className = 'auth-message';
-    }
-
-    const id_token = googleUser.credential;
-  
-    fetch(`${API_BASE_URL}/api/google-login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: id_token })
-    })
-    .then(response => {
-        if (response.ok) {
-            window.location.href = 'index.html';
-        } else {
-            return response.json().then(err => { throw new Error(err.error || 'Login con Google fallito.'); });
-        }
-    })
-    .catch(error => {
+    
+    function onSignIn(googleUser) {
+        const messageDiv = document.getElementById('login-message') || document.getElementById('register-message');
         if (messageDiv) {
-            messageDiv.textContent = `Errore: ${error.message}`;
-            messageDiv.className = 'auth-message error';
+            messageDiv.textContent = 'Verifica in corso...';
+            messageDiv.className = 'auth-message';
         }
-        console.error('Errore durante il login con Google:', error);
-    });
-}
+    
+        const id_token = googleUser.credential;
+      
+        fetch(`${API_BASE_URL}/api/google-login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: id_token })
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.href = 'index.html';
+            } else {
+                return response.json().then(err => { throw new Error(err.error || 'Login con Google fallito.'); });
+            }
+        })
+        .catch(error => {
+            if (messageDiv) {
+                messageDiv.textContent = `Errore: ${error.message}`;
+                messageDiv.className = 'auth-message error';
+            }
+            console.error('Errore durante il login con Google:', error);
+        });
+    }
+
+    // --- ESECUZIONE ALL'AVVIO ---
+    
+    activateMainTabAndHeader();
+    updateUserStatusNavbar();
+    
+    if (document.getElementById('logoutLink')) {
+        document.getElementById('logoutLink').addEventListener('click', async function(e) {
+            e.preventDefault();
+            await fetch(`${API_BASE_URL}/api/logout`, { method: 'POST' });
+            window.location.href = 'login.html';
+        });
+    }
+
+    const isCoursePage = currentPage.startsWith('ing_') || ['scienze_biologiche.html', 'biotecnologie.html', 'scienze_naturali.html', 'scienze_motorie.html'].includes(currentPage);
+    if (isCoursePage && document.querySelector('.year-tabs button')) {
+        document.querySelector('.year-tabs button').click();
+    }
+    
+    if (['upload_note.html', 'login.html', 'register.html'].includes(currentPage)) {
+        setupAuthAndUploadPages();
+    }
+
+    // Rendi la funzione di login con Google globalmente accessibile
+    window.onSignIn = onSignIn;
+});

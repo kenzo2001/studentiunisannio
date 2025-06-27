@@ -98,26 +98,40 @@ footer {
 .ing-tabs-container { margin-top: 30px; margin-bottom: 30px; }
 .ing-tabs { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; }
 
-.department-button, .btn-primario {
+.department-button {
     display: inline-block; padding: 12px 25px;
     color: var(--colore-bianco); text-decoration: none;
     font-weight: 600; border-radius: var(--border-radius);
     transition: background-color 0.3s ease, transform 0.2s ease;
     text-align: center; border: none; cursor: pointer;
 }
-.department-button:hover, .btn-primario:hover {
+.department-button:hover {
     transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
 /* Colori dinamici per i bottoni dei dipartimenti */
-.page-ding .department-button, .page-ding .btn-primario { background-color: var(--color-ding); }
-.page-ding .department-button:hover, .page-ding .btn-primario:hover { background-color: #a00404; }
+.page-ding .department-button { background-color: var(--color-ding); }
+.page-ding .department-button:hover { background-color: #a00404; }
 
-.page-dst .department-button, .page-dst .btn-primario { background-color: var(--color-dst); }
-.page-dst .department-button:hover, .page-dst .btn-primario:hover { background-color: #038a59; }
+.page-dst .department-button { background-color: var(--color-dst); }
+.page-dst .department-button:hover { background-color: #038a59; }
 
-.page-demm .department-button, .page-demm .btn-primario { background-color: var(--color-demm); }
-.page-demm .department-button:hover, .page-demm .btn-primario:hover { background-color: #010033; }
+.page-demm .department-button { background-color: var(--color-demm); }
+.page-demm .department-button:hover { background-color: #010033; }
+
+/* --- NUOVO: Stile specifico per il pulsante Carica Appunto --- */
+.btn-upload {
+    display: inline-block; padding: 12px 25px;
+    background-color: var(--color-home); /* Sempre blu */
+    color: var(--colore-bianco); text-decoration: none;
+    font-weight: 600; border-radius: var(--border-radius);
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    text-align: center; border: none; cursor: pointer;
+}
+.btn-upload:hover {
+    background-color: var(--colore-primario-hover); /* Blu più scuro */
+    transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
 
 
 /* ----------------------------------------- */
