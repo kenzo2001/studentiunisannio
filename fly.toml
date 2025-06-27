@@ -9,7 +9,7 @@ primary_region = 'fra'
 
 # Sezione di Deploy. Questo comando viene eseguito ad ogni deploy.
 [deploy]
-  release_command = "python3 init_db.py"
+  release_command = "python init_db.py"
 
 # Variabili d'ambiente per l'app in esecuzione.
 [env]

@@ -26,14 +26,13 @@ def initialize_database():
             if not Department.query.filter_by(name=dept_name).first():
                 db.session.add(Department(name=dept_name))
         db.session.commit()
-        print("INIT_DB: Dipartimenti assicurati.")
 
         # --- 2. Popolamento Corsi di Laurea Triennale ---
         ding_dept = Department.query.filter_by(name='DING').one()
         dst_dept = Department.query.filter_by(name='DST').one()
         demm_dept = Department.query.filter_by(name='DEMM').one()
         
-        # CORREZIONE: Aggiunti i corsi del DEMM nell'ordine corretto
+        # CORREZIONE: Aggiunti i corsi del DEMM per allineare gli ID a quelli del frontend 'develop'
         degree_programs_to_ensure = [
             # DING (ID: 1, 2, 3, 4)
             {'name': 'Ingegneria Energetica', 'department': ding_dept},
@@ -41,7 +40,7 @@ def initialize_database():
             {'name': 'Ingegneria Informatica', 'department': ding_dept},
             {'name': 'Ingegneria Biomedica', 'department': ding_dept},
             
-            # DEMM (ID: 5, 6) - QUESTI MANCAVANO
+            # DEMM (ID: 5, 6) - Assicura che gli ID successivi siano corretti
             {'name': 'Economia Aziendale', 'department': demm_dept},
             {'name': 'Management', 'department': demm_dept},
 
@@ -55,12 +54,9 @@ def initialize_database():
             if not DegreeProgram.query.filter_by(name=dp_data['name']).first():
                 db.session.add(DegreeProgram(name=dp_data['name'], department=dp_data['department']))
         db.session.commit()
-        print("INIT_DB: Corsi di Laurea assicurati.")
 
         # --- 3. Popolamento Esami ---
         try:
-            print("INIT_DB: Inizio popolamento Esami.")
-            # CORREZIONE: Dizionario 'programs' allineato con i dati corretti
             programs = {
                 'Ingegneria Energetica': DegreeProgram.query.filter_by(name='Ingegneria Energetica').one(),
                 'Ingegneria Civile': DegreeProgram.query.filter_by(name='Ingegneria Civile').one(),
@@ -71,8 +67,8 @@ def initialize_database():
                 'Scienze Naturali, Geologiche e Ambientali': DegreeProgram.query.filter_by(name='Scienze Naturali, Geologiche e Ambientali').one(),
                 'Scienze Motorie per lo Sport e la Salute': DegreeProgram.query.filter_by(name='Scienze Motorie per lo Sport e la Salute').one(),
             }
-            print("INIT_DB: Dizionario 'programs' caricato correttamente.")
 
+            # CORREZIONE: Aggiunte tutte le virgole mancanti per evitare errori di sintassi
             courses_to_add = [
                 # ========================== Ingegneria Energetica ==========================
                 ('Analisi Matematica I', 1, programs['Ingegneria Energetica']),
@@ -173,7 +169,6 @@ def initialize_database():
                 ('Laboratorio di Misure Elettroniche per Applicazioni Medicali', 3, programs['Ingegneria Biomedica']),
                 
                 # ========================== DST (Corsi Ufficiali) =============================
-                # --- Scienze Biologiche ---
                 ('BIOLOGIA E SISTEMATICA VEGETALE', 1, programs['Scienze Biologiche']),
                 ('CHIMICA GENERALE', 1, programs['Scienze Biologiche']),
                 ('CHIMICA ORGANICA', 1, programs['Scienze Biologiche']),
@@ -194,7 +189,6 @@ def initialize_database():
                 ('FISIOLOGIA VEGETALE', 3, programs['Scienze Biologiche']),
                 ('LABORATORIO DI BIOLOGIA SPERIMENTALE', 3, programs['Scienze Biologiche']),
 
-                # --- Biotecnologie ---
                 ('BIOLOGIA CELLULARE', 1, programs['Biotecnologie']),
                 ('BIOTECNOLOGIE E DIRITTO DELL UNIONE EUROPEA', 1, programs['Biotecnologie']),
                 ('CHIMICA GENERALE E INORGANICA (Biotecnologie)', 1, programs['Biotecnologie']),
@@ -216,7 +210,6 @@ def initialize_database():
                 ('FITOCHIMICA E SUE APPLICAZIONI BIOTECNOLOGICHE', 3, programs['Biotecnologie']),
                 ('LABORATORI INTEGRATI', 3, programs['Biotecnologie']),
 
-                # --- Scienze Naturali, Geologiche e Ambientali ---
                 ('CHIMICA GENERALE E INORGANICA (Scienze Naturali)', 1, programs['Scienze Naturali, Geologiche e Ambientali']),
                 ('CHIMICA ORGANICA CON ELEMENTI DI BIOCHIMICA', 1, programs['Scienze Naturali, Geologiche e Ambientali']),
                 ('FONDAMENTI DI BIOLOGIA', 1, programs['Scienze Naturali, Geologiche e Ambientali']),
@@ -238,7 +231,6 @@ def initialize_database():
                 ('GEOFISICA DELLA TERRA SOLIDA', 3, programs['Scienze Naturali, Geologiche e Ambientali']),
                 ('SOSTENIBILITÀ AMBIENTALE E PROTEZIONE DELLA NATURA', 3, programs['Scienze Naturali, Geologiche e Ambientali']),
 
-                # --- Scienze Motorie per lo Sport e la Salute ---
                 ('Anatomia Umana', 1, programs['Scienze Motorie per lo Sport e la Salute']),
                 ('Biologia applicata', 1, programs['Scienze Motorie per lo Sport e la Salute']),
                 ('Biochimica (Scienze Motorie)', 1, programs['Scienze Motorie per lo Sport e la Salute']),
@@ -307,5 +299,3 @@ def initialize_database():
 
 if __name__ == '__main__':
     initialize_database()
-
-
