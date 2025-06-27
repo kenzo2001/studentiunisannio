@@ -5,9 +5,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const API_BASE_URL = isLocal ? 'http://127.0.0.1:5000' : 'https://studentiunisannio.it';
     
     const degreeProgramIds = {
-        'ing_energetica': 1, 'ing_civile': 2, 'ing_informatica': 3, 'ing_biomedica': 4,
-        'scienze_biologiche': 7, 'biotecnologie': 8, 'scienze_naturali': 9, 'scienze_motorie': 10
-    };
+    'ing_energetica': 1, 'ing_civile': 2, 'ing_informatica': 3, 'ing_biomedica': 4,
+    'scienze_biologiche': 5, 'biotecnologie': 6, 'scienze_naturali': 7, 'scienze_motorie': 8
+};
     
     const tabInfoMapping = {
         'primoAnnoEnergetica': { degree_name: 'ing_energetica', year: 1 },'secondoAnnoEnergetica': { degree_name: 'ing_energetica', year: 2 },'terzoAnnoEnergetica': { degree_name: 'ing_energetica', year: 3 },
