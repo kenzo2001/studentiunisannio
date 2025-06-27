@@ -6,6 +6,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from flask_cors import CORS
+from functools import wraps 
 import boto3
 from botocore.exceptions import NoCredentialsError, ClientError
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
@@ -378,6 +379,12 @@ def serve_home():
 @app.route('/login.html')
 def serve_login_page():
     return send_from_directory('.', 'login.html')
+
+
+@app.route('/admin_dashboard.html') # NUOVA ROTTA
+def serve_admin_dashboard_page():
+    return send_from_directory('.', 'admin_dashboard.html')
+
 
 @app.route('/<path:filename>')
 def serve_static_files(filename):
