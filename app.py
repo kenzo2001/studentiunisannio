@@ -221,8 +221,6 @@ def get_degree_programs_by_department(department_id):
 @app.route('/api/degree_programs/<int:degree_program_id>/courses/<int:year>', methods=['GET'])
 def get_courses_by_year(degree_program_id, year):
     courses = Course.query.filter_by(degree_program_id=degree_program_id, year=year).order_by(Course.name).all()
-    if not courses:
-        return jsonify([]), 404
     return jsonify([c.to_dict() for c in courses])
 
 @app.route('/api/courses/<int:course_id>/notes', methods=['GET'])
