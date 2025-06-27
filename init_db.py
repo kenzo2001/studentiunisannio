@@ -2,7 +2,6 @@ import os
 from app import app, db, Department, DegreeProgram, Course, Note
 from werkzeug.security import generate_password_hash
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy import func # Import func for case-insensitive queries
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
@@ -13,7 +12,6 @@ def initialize_database():
 
     with app.app_context():
         try:
-            # ATTENZIONE: db.drop_all() è stato rimosso. Questo script NON eliminerà i dati esistenti.
             db.create_all()
             print("INIT_DB: Struttura tabelle SQL verificata/creata.")
         except Exception as e:
@@ -25,25 +23,16 @@ def initialize_database():
         # --- 1. Popolamento Dipartimenti ---
         departments_to_ensure = ['DING', 'DST', 'DEMM']
         for dept_name in departments_to_ensure:
-            # Controllo case-insensitive per i dipartimenti
-            if not Department.query.filter(func.lower(Department.name) == dept_name.lower()).first():
+            if not Department.query.filter_by(name=dept_name).first():
                 db.session.add(Department(name=dept_name))
-        db.session.commit() # Commit departments to ensure they have IDs
-
-        # Recupera i dipartimenti con un controllo case-insensitive per sicurezza
-        ding_dept = Department.query.filter(func.lower(Department.name) == 'ding').one_or_none()
-        dst_dept = Department.query.filter(func.lower(Department.name) == 'dst').one_or_none()
-        demm_dept = Department.query.filter(func.lower(Department.name) == 'demm').one_or_none()
-
-        if not ding_dept or not dst_dept or not demm_dept:
-            print("ERRORE INIT_DB: Impossibile trovare uno o più dipartimenti. Assicurarsi che i dipartimenti siano stati creati correttamente.")
-            return # Esci se i dipartimenti non sono stati creati
+        db.session.commit()
 
         # --- 2. Popolamento Corsi di Laurea Triennale ---
-        print("INIT_DB: Inizio fase combinata per i DegreeProgram.")
+        ding_dept = Department.query.filter_by(name='DING').one()
+        dst_dept = Department.query.filter_by(name='DST').one()
+        demm_dept = Department.query.filter_by(name='DEMM').one()
         
-        # Data for canonical degree programs
-        degree_programs_canonical_data = [
+        degree_programs_to_ensure = [
             # DING
             {'name': 'Ingegneria Energetica', 'department': ding_dept},
             {'name': 'Ingegneria Civile', 'department': ding_dept},
@@ -58,73 +47,23 @@ def initialize_database():
             {'name': 'Scienze Naturali, Geologiche e Ambientali', 'department': dst_dept},
             {'name': 'Scienze Motorie per lo Sport e la Salute', 'department': dst_dept},
         ]
-
-        # Use a temporary dictionary to store canonical DegreeProgram objects
-        # This will help ensure we work with the most up-to-date object in the session
-        # and prevent re-querying for canonical_entry later, especially if new entries are flushed.
-        canonical_programs_map = {}
-
-        with db.session.no_autoflush: # Disabilita l'autoflush per l'intera operazione complessa
-            for dp_data in degree_programs_canonical_data:
-                canonical_name = dp_data['name']
-                department = dp_data['department']
-                
-                # Trova TUTTE le voci esistenti che corrispondono in modo case-insensitive per questo nome e dipartimento
-                all_matching_dps = DegreeProgram.query.filter(
-                    func.lower(DegreeProgram.name) == canonical_name.lower(),
-                    DegreeProgram.department_id == department.id
-                ).all()
-
-                current_canonical_entry = None
-
-                if all_matching_dps:
-                    # Cerca una corrispondenza esatta per il nome canonico tra quelle esistenti
-                    exact_match = next((dp for dp in all_matching_dps if dp.name == canonical_name), None)
-                    
-                    if exact_match:
-                        current_canonical_entry = exact_match
-                        print(f"INIT_DB: Trovata corrispondenza esatta per '{canonical_name}' (ID {current_canonical_entry.id}). Usandola come canonica.")
-                    else:
-                        # Se nessuna corrispondenza esatta, prendi la prima esistente e rendila canonica
-                        current_canonical_entry = all_matching_dps[0]
-                        print(f"INIT_DB: Nessuna versione esatta di '{canonical_name}' trovata. Usando '{all_matching_dps[0].name}' (ID {all_matching_dps[0].id}) come base canonica.")
-                        # Assicurati che l'entrata canonica abbia il nome corretto
-                        current_canonical_entry.name = canonical_name
-                        print(f"INIT_DB: Normalizzato il nome del corso di laurea da '{current_canonical_entry.name}' a '{canonical_name}' (ID {current_canonical_entry.id}).")
-                    
-                    # Processa i duplicati: re-linka i corsi ed elimina i DegreeProgram duplicati
-                    for dp_duplicate in all_matching_dps:
-                        if dp_duplicate.id != current_canonical_entry.id: # Se non è quello canonico
-                            courses_to_relink = Course.query.filter_by(degree_program_id=dp_duplicate.id).all()
-                            for course in courses_to_relink:
-                                course.degree_program_id = current_canonical_entry.id # Relinka
-                            print(f"INIT_DB: Relinkati {len(courses_to_relink)} corsi dal duplicato ID {dp_duplicate.id} a canonico ID {current_canonical_entry.id}.")
-                            db.session.delete(dp_duplicate) # Marca il duplicato per l'eliminazione
-                            print(f"INIT_DB: Eliminato DegreeProgram duplicato: '{dp_duplicate.name}' (ID {dp_duplicate.id}).")
-                
-                else: # Nessuna corrispondenza esistente trovata (anche case-insensitive)
-                    # Aggiungi la nuova entrata canonica
-                    new_program = DegreeProgram(name=canonical_name, department=department)
-                    db.session.add(new_program)
-                    current_canonical_entry = new_program # Imposta il nuovo oggetto come canonico
-                    print(f"INIT_DB: Aggiunto nuovo corso di laurea canonico: '{canonical_name}'.")
-
-                # Esegui un flush per assicurarti che le nuove entrate abbiano un ID
-                # e che le modifiche ai nomi siano riflesse, anche all'interno del no_autoflush.
-                db.session.flush() 
-                
-                # Salva l'oggetto canonico nel dizionario per un facile accesso futuro
-                canonical_programs_map[canonical_name] = current_canonical_entry
-
-
-        db.session.commit() # Esegui il commit di tutte le modifiche dalla fase combinata
-        print("INIT_DB: Fase combinata per i DegreeProgram completata.")
-
+        for dp_data in degree_programs_to_ensure:
+            if not DegreeProgram.query.filter_by(name=dp_data['name']).first():
+                db.session.add(DegreeProgram(name=dp_data['name'], department=dp_data['department']))
+        db.session.commit()
 
         # --- 3. Popolamento Esami ---
         try:
-            # Recupera i programmi. Ora usa la mappa che contiene solo le entrate canoniche e i loro ID.
-            programs = canonical_programs_map
+            programs = {
+                'Ingegneria Energetica': DegreeProgram.query.filter_by(name='Ingegneria Energetica').one(),
+                'Ingegneria Civile': DegreeProgram.query.filter_by(name='Ingegneria Civile').one(),
+                'Ingegneria Informatica': DegreeProgram.query.filter_by(name='Ingegneria Informatica').one(),
+                'Ingegneria Biomedica': DegreeProgram.query.filter_by(name='Ingegneria Biomedica').one(),
+                'Scienze Biologiche': DegreeProgram.query.filter_by(name='Scienze Biologiche').one(),
+                'Biotecnologie': DegreeProgram.query.filter_by(name='Biotecnologie').one(),
+                'Scienze Naturali, Geologiche e Ambientali': DegreeProgram.query.filter_by(name='Scienze Naturali, Geologiche e Ambientali').one(),
+                'Scienze Motorie per lo Sport e la Salute': DegreeProgram.query.filter_by(name='Scienze Motorie per lo Sport e la Salute').one(),
+            }
 
             courses_to_add = [
     # ========================== Ingegneria Energetica ==========================
@@ -179,7 +118,7 @@ def initialize_database():
     ('Climatologia dell Ambiente Costruito', 2, programs['Ingegneria Civile']),
 
     # --- 3° Anno ---
-    ('Tecnica delle Costruzioni I', 3, programs['Ingegneria Civile']),
+    ('Tecnica delle Costruzioni I', 3, programs['Ingegneria Civile']), # <-- VIRGOLA CORRETTA
     ('Tecnica delle Costruzioni II', 3, programs['Ingegneria Civile']),
     ('Costruzioni Idrauliche', 3, programs['Ingegneria Civile']),
     ('Topografia e Cartografia', 3, programs['Ingegneria Civile']),
@@ -341,24 +280,9 @@ def initialize_database():
             ]
             
             for name, year, program_obj in courses_to_add:
-                # Controllo case-insensitive per gli esami
-                if not Course.query.filter(
-                    func.lower(Course.name) == name.lower(),
-                    Course.degree_program_id == program_obj.id,
-                    Course.year == year
-                ).first():
+                if not Course.query.filter_by(name=name, degree_program_id=program_obj.id).first():
                     db.session.add(Course(name=name, year=year, degree_program=program_obj))
-                else:
-                    # Se esiste una versione case-insensitive, aggiorna il nome alla versione canonica
-                    existing_course = Course.query.filter(
-                        func.lower(Course.name) == name.lower(),
-                        Course.degree_program_id == program_obj.id,
-                        Course.year == year
-                    ).first()
-                    if existing_course and existing_course.name != name:
-                        print(f"INIT_DB: Normalizzando il nome del corso da '{existing_course.name}' a '{name}' per {program_obj.name}")
-                        existing_course.name = name
-
+            
             db.session.commit()
             print("INIT_DB: Popolamento esami SQL completato.")
         except Exception as e:
@@ -375,7 +299,6 @@ def initialize_database():
             raise ValueError("MONGO_URI non trovata.")
 
         db_name = "studenti_db"
-        # Adjusted URI handling for potential db_name inclusion in connection string
         if "retryWrites" in mongo_uri and "/" not in mongo_uri.split("?")[0]:
             parts = mongo_uri.split("?")
             mongo_uri_with_db = f"{parts[0]}/{db_name}?{parts[1]}"
@@ -388,8 +311,7 @@ def initialize_database():
         print(f"INIT_DB: Connesso a MongoDB, database: {db_mongo.name}")
         
         users_collection = db_mongo.users
-        # Controllo case-insensitive per l'utente admin
-        if users_collection.count_documents({"username": {"$regex": "admin", "$options": "i"}}) == 0:
+        if users_collection.count_documents({"username": "admin"}) == 0:
             print("INIT_DB: Aggiungendo utente 'admin'...")
             users_collection.insert_one({"username": "admin", "email": "admin@example.com", "password_hash": generate_password_hash("password")})
             print("INIT_DB: Utente 'admin' aggiunto.")
