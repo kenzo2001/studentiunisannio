@@ -11,14 +11,7 @@ def initialize_database():
     print("INIT_DB: Inizio inizializzazione database.")
 
     with app.app_context():
-        try:
-            db.create_all()
-            print("INIT_DB: Struttura tabelle SQL verificata/creata.")
-        except Exception as e:
-            print(f"ERRORE INIT_DB (SQL): {e}")
-            raise
-
-        print("INIT_DB: Verificando e aggiungendo dati SQL...")
+        # ... (le sezioni 1 e 2 per creare Dipartimenti e Corsi di Laurea rimangono invariate) ...
         
         # --- 1. Popolamento Dipartimenti ---
         departments_to_ensure = ['DING', 'DST', 'DEMM']
@@ -26,6 +19,7 @@ def initialize_database():
             if not Department.query.filter_by(name=dept_name).first():
                 db.session.add(Department(name=dept_name))
         db.session.commit()
+        print("INIT_DB: Dipartimenti assicurati.")
 
         # --- 2. Popolamento Corsi di Laurea Triennale ---
         ding_dept = Department.query.filter_by(name='DING').one()
@@ -33,25 +27,26 @@ def initialize_database():
         demm_dept = Department.query.filter_by(name='DEMM').one()
         
         degree_programs_to_ensure = [
-            # DING
             {'name': 'Ingegneria Energetica', 'department': ding_dept},
             {'name': 'Ingegneria Civile', 'department': ding_dept},
             {'name': 'Ingegneria Informatica', 'department': ding_dept},
             {'name': 'Ingegneria Biomedica', 'department': ding_dept},
-        
-            # DST
             {'name': 'Scienze Biologiche', 'department': dst_dept},
             {'name': 'Biotecnologie', 'department': dst_dept},
             {'name': 'Scienze Naturali', 'department': dst_dept},
-            {'name': 'Scienze Motorie', 'department': dst_dept},
+            # NOTA: Uso ancora il nome lungo per matchare il tuo codice attuale
+            {'name': 'Scienze Motorie per lo Sport e la Salute', 'department': dst_dept},
         ]
         for dp_data in degree_programs_to_ensure:
             if not DegreeProgram.query.filter_by(name=dp_data['name']).first():
                 db.session.add(DegreeProgram(name=dp_data['name'], department=dp_data['department']))
         db.session.commit()
+        print("INIT_DB: Corsi di Laurea assicurati.")
+
 
         # --- 3. Popolamento Esami ---
         try:
+            print("INIT_DB: Inizio popolamento Esami.")
             programs = {
                 'Ingegneria Energetica': DegreeProgram.query.filter_by(name='Ingegneria Energetica').one(),
                 'Ingegneria Civile': DegreeProgram.query.filter_by(name='Ingegneria Civile').one(),
@@ -60,10 +55,12 @@ def initialize_database():
                 'Scienze Biologiche': DegreeProgram.query.filter_by(name='Scienze Biologiche').one(),
                 'Biotecnologie': DegreeProgram.query.filter_by(name='Biotecnologie').one(),
                 'Scienze Naturali': DegreeProgram.query.filter_by(name='Scienze Naturali').one(),
-                'Scienze Motorie': DegreeProgram.query.filter_by(name='Scienze Motorie').one(),
+                'Scienze Motorie per lo Sport e la Salute': DegreeProgram.query.filter_by(name='Scienze Motorie per lo Sport e la Salute').one(),
             }
+            print("INIT_DB: Dizionario 'programs' caricato correttamente.")
 
             courses_to_add = [
+                # ... (tutta la tua lista di corsi rimane qui, invariata)
                 # Ingegneria Energetica
                 ('Analisi Matematica I', 1, programs['Ingegneria Energetica']), ('Analisi Matematica II', 1, programs['Ingegneria Energetica']),('Fisica Generale I', 1, programs['Ingegneria Energetica']),('Fisica Generale II', 1, programs['Ingegneria Energetica']), ('Algebra Lineare Geometria e ricerca operativa', 1, programs['Ingegneria Energetica']), ('Chimica', 1, programs['Ingegneria Energetica']), ('Elementi di Informatica', 1, programs['Ingegneria Energetica']), ('Fondamenti della misurazione', 1, programs['Ingegneria Energetica']),('Inglese', 1, programs['Ingegneria Energetica']),
                 ('Modelli di Reattori Chimici', 2, programs['Ingegneria Energetica']),('Sistemi Elettrici per L^Energia', 2, programs['Ingegneria Energetica']),('Termofluido Dinamica e Trasmissione del Calore', 2, programs['Ingegneria Energetica']), ('Meccanica Applicata alle Macchine', 2, programs['Ingegneria Energetica']), ('Elettrotecnica', 2, programs['Ingegneria Energetica']), ('Fisica Tecnica', 2, programs['Ingegneria Energetica']),('Processi di Combustione', 2, programs['Ingegneria Energetica']),('Macchine a Fluido', 2, programs['Ingegneria Energetica']),
@@ -101,23 +98,33 @@ def initialize_database():
             
                 
                 # Scienze Motorie
-                ('Anatomia Umana', 1, programs['Scienze Motorie']), ('Biologia applicata', 1, programs['Scienze Motorie']), ('Biochimica (Scienze Motorie)', 1, programs['Scienze Motorie']), ('Fisica con elementi di biomeccanica', 1, programs['Scienze Motorie']), ('Principi di diritto e management dello sport', 1, programs['Scienze Motorie']), ('Inglese scientifico', 1, programs['Scienze Motorie']), ('Teoria del movimento e tecnica dell\'attività motoria e sportiva', 1, programs['Scienze Motorie']), ('Pedagogia e sociologia della comunicazione', 1, programs['Scienze Motorie']),
-                ('Informatica e Statistica', 2, programs['Scienze Motorie']), ('Metodologie didattiche per le attivita\' sportive', 2, programs['Scienze Motorie']), ('Didattica e pedagogia speciale', 2, programs['Scienze Motorie']), ('Fisiologia umana applicata alle scienze motorie', 2, programs['Scienze Motorie']), ('Teoria dell\'allenamento e metodi di valutazione motoria', 2, programs['Scienze Motorie']), ('Bioingegneria applicata alle scienze motorie', 2, programs['Scienze Motorie']),
-                ('Basi di nutrizione applicata allo sport', 3, programs['Scienze Motorie']), ('Igiene', 3, programs['Scienze Motorie']), ('Genetica e performance sportiva', 3, programs['Scienze Motorie']), ('Patologia generale', 3, programs['Scienze Motorie']), ('Farmacologia applicata allo sport', 3, programs['Scienze Motorie']),
+                ('Anatomia Umana', 1, programs['Scienze Motorie per lo Sport e la Salute']), ('Biologia applicata', 1, programs['Scienze Motorie per lo Sport e la Salute']), ('Biochimica (Scienze Motorie)', 1, programs['Scienze Motorie per lo Sport e la Salute']), ('Fisica con elementi di biomeccanica', 1, programs['Scienze Motorie per lo Sport e la Salute']), ('Principi di diritto e management dello sport', 1, programs['Scienze Motorie per lo Sport e la Salute']), ('Inglese scientifico', 1, programs['Scienze Motorie per lo Sport e la Salute']), ('Teoria del movimento e tecnica dell\'attività motoria e sportiva', 1, programs['Scienze Motorie per lo Sport e la Salute']), ('Pedagogia e sociologia della comunicazione', 1, programs['Scienze Motorie per lo Sport e la Salute']),
+                ('Informatica e Statistica', 2, programs['Scienze Motorie per lo Sport e la Salute']), ('Metodologie didattiche per le attivita\' sportive', 2, programs['Scienze Motorie per lo Sport e la Salute']), ('Didattica e pedagogia speciale', 2, programs['Scienze Motorie per lo Sport e la Salute']), ('Fisiologia umana applicata alle scienze motorie', 2, programs['Scienze Motorie per lo Sport e la Salute']), ('Teoria dell\'allenamento e metodi di valutazione motoria', 2, programs['Scienze Motorie per lo Sport e la Salute']), ('Bioingegneria applicata alle scienze motorie', 2, programs['Scienze Motorie per lo Sport e la Salute']),
+                ('Basi di nutrizione applicata allo sport', 3, programs['Scienze Motorie per lo Sport e la Salute']), ('Igiene', 3, programs['Scienze Motorie per lo Sport e la Salute']), ('Genetica e performance sportiva', 3, programs['Scienze Motorie per lo Sport e la Salute']), ('Patologia generale', 3, programs['Scienze Motorie per lo Sport e la Salute']), ('Farmacologia applicata allo sport', 3, programs['Scienze Motorie per lo Sport e la Salute']),
             ]
             
+            print(f"INIT_DB: Trovati {len(courses_to_add)} corsi da aggiungere/verificare.")
+            
+            # Aggiunta corsi con commit finale
             for name, year, program_obj in courses_to_add:
                 if not Course.query.filter_by(name=name, degree_program_id=program_obj.id).first():
                     db.session.add(Course(name=name, year=year, degree_program=program_obj))
             
+            print("INIT_DB: Tutti i corsi sono stati aggiunti alla sessione. Inizio commit.")
             db.session.commit()
-            print("INIT_DB: Popolamento esami SQL completato.")
+            print("INIT_DB: Popolamento esami SQL completato con successo.")
+
         except Exception as e:
             db.session.rollback()
-            print(f"ERRORE INIT_DB (SQL Popolamento Esami): {e}")
+            # Stampa un errore molto più visibile
+            print("\n" + "="*50)
+            print("ERRORE CRITICO in INIT_DB durante il popolamento degli esami.")
+            print(f"ECCEZIONE: {e}")
+            print("La transazione è stata annullata (rollback).")
+            print("="*50 + "\n")
             raise
 
-    # --- Sezione MongoDB (invariata) ---
+    # ... (Sezione MongoDB invariata) ...
     print("INIT_DB: Inizio operazione su MongoDB...")
     mongo_client = None
     try:
