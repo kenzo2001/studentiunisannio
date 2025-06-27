@@ -13,6 +13,7 @@ def initialize_database():
 
     with app.app_context():
         try:
+            # ATTENZIONE: db.drop_all() è stato rimosso. Questo script NON eliminerà i dati esistenti.
             db.create_all()
             print("INIT_DB: Struttura tabelle SQL verificata/creata.")
         except Exception as e:
