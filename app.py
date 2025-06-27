@@ -14,6 +14,7 @@ from bson.objectid import ObjectId
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from dotenv import load_dotenv
+from functools import wraps # AGGIUNGI QUESTA RIGA PER IMPORTARE wraps
 
 # Carica le variabili d'ambiente una sola volta
 load_dotenv()
@@ -78,8 +79,9 @@ class User(UserMixin):
         self.username = user_data.get('username')
         self.email = user_data.get('email')
         self.password_hash = user_data.get('password_hash')
+        self.role = user_data.get('role', 'user') # Nuovo campo: ruolo utente, default 'user'
     def to_dict(self):
-        return {"id": self.id, "username": self.username, "email": self.email}
+        return {"id": self.id, "username": self.username, "email": self.email, "role": self.role} # Includi il ruolo
 
 class Department(db.Model):
     __tablename__ = 'departments'
@@ -114,7 +116,8 @@ class Note(db.Model):
     upload_date = db.Column(db.DateTime, default=datetime.utcnow)
     course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
     uploader_name = db.Column(db.String(80), nullable=True)
-    def to_dict(self): return {"id": self.id, "title": self.title, "description": self.description, "s3_key": self.s3_key, "upload_date": self.upload_date.isoformat(), "course_id": self.course_id, "uploader_name": self.uploader_name}
+    status = db.Column(db.String(20), default='pending', nullable=False) # Nuovo campo: stato dell'appunto
+    def to_dict(self): return {"id": self.id, "title": self.title, "description": self.description, "s3_key": self.s3_key, "upload_date": self.upload_date.isoformat(), "course_id": self.course_id, "uploader_name": self.uploader_name, "status": self.status} # Includi lo stato
 
 # --- GESTIONE SESSIONE UTENTE ---
 
@@ -159,7 +162,8 @@ def google_login():
         
         if not user_data:
             hashed_password = generate_password_hash(os.urandom(24).hex())
-            new_user_data = {"username": user_name, "email": user_email, "password_hash": hashed_password, "source": "google"}
+            # Nuovo utente: default 'user'
+            new_user_data = {"username": user_name, "email": user_email, "password_hash": hashed_password, "source": "google", "role": "user"}
             mongo.db.users.insert_one(new_user_data)
             user_data = mongo.db.users.find_one({"email": user_email})
 
@@ -188,7 +192,8 @@ def register():
     if mongo.db.users.find_one({"username": username}) or mongo.db.users.find_one({"email": email}):
         return jsonify({"error": "Username o email già in uso"}), 409
 
-    mongo.db.users.insert_one({"username": username, "email": email, "password_hash": generate_password_hash(password), "source": "manual"})
+    # Nuovo utente: default 'user'
+    mongo.db.users.insert_one({"username": username, "email": email, "password_hash": generate_password_hash(password), "source": "manual", "role": "user"})
     return jsonify({"message": "Registrazione avvenuta con successo!"}), 201
 
 @app.route('/api/login', methods=['POST'])
@@ -233,7 +238,9 @@ def get_courses_by_year(degree_program_id, year):
 
 @app.route('/api/courses/<int:course_id>/notes', methods=['GET'])
 def get_notes_for_course(course_id):
-    notes = Note.query.filter_by(course_id=course_id).order_by(Note.upload_date.desc()).all()
+    # Modificato: recupera solo gli appunti con stato 'approved' per gli utenti normali
+    # Gli admin potranno vedere anche gli appunti 'pending' tramite un altro endpoint futuro
+    notes = Note.query.filter_by(course_id=course_id, status='approved').order_by(Note.upload_date.desc()).all()
     if not notes:
         return jsonify({"message": "Nessun appunto trovato per questo corso."}), 404
     return jsonify([n.to_dict() for n in notes])
@@ -265,10 +272,11 @@ def upload_note():
             unique_s3_key = f"notes/{uuid.uuid4().hex}-{original_filename}"
             s3_client.upload_fileobj(file, S3_BUCKET, unique_s3_key)
 
-            new_note = Note(title=title, description=description, s3_key=unique_s3_key, course_id=course_id, uploader_name=uploader_name)
+            # Nuovo appunto: stato iniziale 'pending'
+            new_note = Note(title=title, description=description, s3_key=unique_s3_key, course_id=course_id, uploader_name=uploader_name, status='pending')
             db.session.add(new_note)
             db.session.commit()
-            return jsonify({"message": "Appunto caricato con successo!"}), 201
+            return jsonify({"message": "Appunto caricato con successo! In attesa di approvazione."}), 201
         except Exception as e:
             db.session.rollback()
             return jsonify({"error": f"Errore interno durante il salvataggio: {e}"}), 500
@@ -278,6 +286,10 @@ def upload_note():
 @login_required
 def download_note(note_id):
     note = Note.query.get_or_404(note_id)
+    # Gli utenti possono scaricare solo appunti approvati
+    if note.status != 'approved' and current_user.role != 'admin': # Aggiunto controllo ruolo
+        return jsonify({"error": "Accesso negato: Appunto non approvato."}), 403
+
     if not s3_client:
         return jsonify({"error": "Servizio di download non configurato."}), 500
     try:
@@ -285,6 +297,78 @@ def download_note(note_id):
         return jsonify({"download_url": presigned_url})
     except Exception as e:
         return jsonify({"error": "Impossibile generare il link per il download."}), 500
+
+
+# --- NUOVI ENDPOINT PER ADMIN ---
+
+# Decoratore per richiedere il ruolo di amministratore
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role != 'admin':
+            return jsonify({"error": "Accesso negato: Richiede ruolo di amministratore."}), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Endpoint per visualizzare appunti in attesa di approvazione
+@app.route('/api/admin/pending_notes', methods=['GET'])
+@login_required
+@admin_required
+def get_pending_notes():
+    pending_notes = Note.query.filter_by(status='pending').order_by(Note.upload_date.desc()).all()
+    if not pending_notes:
+        return jsonify({"message": "Nessun appunto in attesa di approvazione."}), 404
+    return jsonify([n.to_dict() for n in pending_notes])
+
+# Endpoint per approvare un appunto
+@app.route('/api/admin/notes/<int:note_id>/approve', methods=['POST'])
+@login_required
+@admin_required
+def approve_note(note_id):
+    note = Note.query.get_or_404(note_id)
+    if note.status == 'approved':
+        return jsonify({"message": "Appunto già approvato."}), 200
+    note.status = 'approved'
+    db.session.commit()
+    return jsonify({"message": "Appunto approvato con successo!"}), 200
+
+# Endpoint per rifiutare un appunto (o marcarlo come non attivo)
+@app.route('/api/admin/notes/<int:note_id>/reject', methods=['POST'])
+@login_required
+@admin_required
+def reject_note(note_id):
+    note = Note.query.get_or_404(note_id)
+    if note.status == 'rejected':
+        return jsonify({"message": "Appunto già rifiutato."}), 200
+    note.status = 'rejected'
+    db.session.commit()
+    return jsonify({"message": "Appunto rifiutato con successo!"}), 200
+
+# Endpoint per eliminare un appunto
+@app.route('/api/admin/notes/<int:note_id>/delete', methods=['DELETE'])
+@login_required
+@admin_required
+def delete_note(note_id):
+    note = Note.query.get_or_404(note_id)
+    s3_key = note.s3_key
+
+    try:
+        # Elimina il file da S3
+        if s3_client:
+            s3_client.delete_object(Bucket=S3_BUCKET, Key=s3_key)
+            print(f"DEBUG: File {s3_key} eliminato da S3.")
+        
+        # Elimina la voce dal database
+        db.session.delete(note)
+        db.session.commit()
+        return jsonify({"message": "Appunto eliminato con successo!"}), 200
+    except ClientError as e:
+        db.session.rollback()
+        return jsonify({"error": f"Errore S3 durante l'eliminazione: {e}"}), 500
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Errore durante l'eliminazione dell'appunto: {e}"}), 500
+
 
 # --- ROTTE PER SERVIRE FILE STATICI ---
 @app.route('/')
