@@ -32,19 +32,16 @@ def initialize_database():
         dst_dept = Department.query.filter_by(name='DST').one()
         demm_dept = Department.query.filter_by(name='DEMM').one()
         
-        # CORREZIONE: Aggiunti i corsi del DEMM per allineare gli ID a quelli del frontend 'develop'
         degree_programs_to_ensure = [
-            # DING (ID: 1, 2, 3, 4)
+            # DING
             {'name': 'Ingegneria Energetica', 'department': ding_dept},
             {'name': 'Ingegneria Civile', 'department': ding_dept},
             {'name': 'Ingegneria Informatica', 'department': ding_dept},
             {'name': 'Ingegneria Biomedica', 'department': ding_dept},
-            
-            # DEMM (ID: 5, 6) - Assicura che gli ID successivi siano corretti
+            # DEMM
             {'name': 'Economia Aziendale', 'department': demm_dept},
             {'name': 'Management', 'department': demm_dept},
-
-            # DST (ID: 7, 8, 9, 10)
+            # DST
             {'name': 'Scienze Biologiche', 'department': dst_dept},
             {'name': 'Biotecnologie', 'department': dst_dept},
             {'name': 'Scienze Naturali, Geologiche e Ambientali', 'department': dst_dept},
@@ -68,107 +65,128 @@ def initialize_database():
                 'Scienze Motorie per lo Sport e la Salute': DegreeProgram.query.filter_by(name='Scienze Motorie per lo Sport e la Salute').one(),
             }
 
-            # CORREZIONE: Aggiunte tutte le virgole mancanti per evitare errori di sintassi
             courses_to_add = [
-                # ========================== Ingegneria Energetica ==========================
-                ('Analisi Matematica I', 1, programs['Ingegneria Energetica']),
-                ('Analisi Matematica II', 1, programs['Ingegneria Energetica']),
-                ('Fisica Generale I', 1, programs['Ingegneria Energetica']),
-                ('Fisica Generale II', 1, programs['Ingegneria Energetica']),
-                ('Algebra Lineare Geometria e ricerca operativa', 1, programs['Ingegneria Energetica']),
-                ('Chimica', 1, programs['Ingegneria Energetica']),
-                ('Elementi di Informatica', 1, programs['Ingegneria Energetica']),
-                ('Fondamenti della misurazione', 1, programs['Ingegneria Energetica']),
-                ('Inglese', 1, programs['Ingegneria Energetica']),
-                ('Modelli di Reattori Chimici', 2, programs['Ingegneria Energetica']),
-                ('Sistemi Elettrici per L^Energia', 2, programs['Ingegneria Energetica']),
-                ('Termofluido Dinamica e Trasmissione del Calore', 2, programs['Ingegneria Energetica']),
-                ('Meccanica Applicata alle Macchine', 2, programs['Ingegneria Energetica']),
-                ('Elettrotecnica', 2, programs['Ingegneria Energetica']),
-                ('Fisica Tecnica', 2, programs['Ingegneria Energetica']),
-                ('Processi di Combustione', 2, programs['Ingegneria Energetica']),
-                ('Macchine a Fluido', 2, programs['Ingegneria Energetica']),
-                ('Impianti Chimici per L^Energia', 3, programs['Ingegneria Energetica']),
-                ('Impianti Industriali', 3, programs['Ingegneria Energetica']),
-                ('Energetica', 3, programs['Ingegneria Energetica']),
-                ('Tecnologie delle Fonti Rinnovabili', 3, programs['Ingegneria Energetica']),
-                ('Sistemi Elettrici Industriali', 3, programs['Ingegneria Energetica']),
-                ('Elementi di Ingegneria Strutturali', 3, programs['Ingegneria Energetica']),
+    # ========================== Ingegneria Energetica ==========================
+    # --- 1° Anno ---
+    ('Analisi Matematica I', 1, programs['Ingegneria Energetica']),
+    ('Analisi Matematica II', 1, programs['Ingegneria Energetica']),
+    ('Fisica Generale I', 1, programs['Ingegneria Energetica']),
+    ('Fisica Generale II', 1, programs['Ingegneria Energetica']),
+    ('Algebra Lineare Geometria e ricerca operativa', 1, programs['Ingegneria Energetica']),
+    ('Chimica', 1, programs['Ingegneria Energetica']),
+    ('Elementi di Informatica', 1, programs['Ingegneria Energetica']),
+    ('Fondamenti della misurazione', 1, programs['Ingegneria Energetica']),
+    ('Inglese', 1, programs['Ingegneria Energetica']),
 
-                # ========================== Ingegneria Civile =============================
-                ('Analisi Matematica I', 1, programs['Ingegneria Civile']),
-                ('Analisi Matematica II', 1, programs['Ingegneria Civile']),
-                ('Fisica Generale ', 1, programs['Ingegneria Civile']),
-                ('Geometria e Algebra Lineare', 1, programs['Ingegneria Civile']),
-                ('Elementi di Informatica', 1, programs['Ingegneria Civile']),
-                ('Scienze e tecnologia dei Materiali', 1, programs['Ingegneria Civile']),
-                ('Inglese', 1, programs['Ingegneria Civile']),
-                ('Meccanica Razionale', 2, programs['Ingegneria Civile']),
-                ('Scienza delle Costruzioni', 2, programs['Ingegneria Civile']),
-                ('Fisica Tecnica', 2, programs['Ingegneria Civile']),
-                ('Idraulica', 2, programs['Ingegneria Civile']),
-                ('Tecnica Urbanistica', 2, programs['Ingegneria Civile']),
-                ('Ingegneria dei Sistemi di trasporto I', 2, programs['Ingegneria Civile']),
-                ('Ingegneria dei Sistemi di trasporto II', 2, programs['Ingegneria Civile']),
-                ('Fondamenti di Infrastrutture Viaree', 2, programs['Ingegneria Civile']),
-                ('Climatologia dell Ambiente Costruito', 2, programs['Ingegneria Civile']),
-                ('Tecnica delle Costruzioni I', 3, programs['Ingegneria Civile']),
-                ('Tecnica delle Costruzioni II', 3, programs['Ingegneria Civile']),
-                ('Costruzioni Idrauliche', 3, programs['Ingegneria Civile']),
-                ('Topografia e Cartografia', 3, programs['Ingegneria Civile']),
-                ('Principi di Geotecnica', 3, programs['Ingegneria Civile']),
-                ('Fondazioni ed Opere di Sostegno', 3, programs['Ingegneria Civile']),
+    # --- 2° Anno ---
+    ('Modelli di Reattori Chimici', 2, programs['Ingegneria Energetica']),
+    ('Sistemi Elettrici per L^Energia', 2, programs['Ingegneria Energetica']),
+    ('Termofluido Dinamica e Trasmissione del Calore', 2, programs['Ingegneria Energetica']),
+    ('Meccanica Applicata alle Macchine', 2, programs['Ingegneria Energetica']),
+    ('Elettrotecnica', 2, programs['Ingegneria Energetica']),
+    ('Fisica Tecnica', 2, programs['Ingegneria Energetica']),
+    ('Processi di Combustione', 2, programs['Ingegneria Energetica']),
+    ('Macchine a Fluido', 2, programs['Ingegneria Energetica']),
 
-                # ======================== Ingegneria Informatica ==========================
-                ('Analisi Matematica I', 1, programs['Ingegneria Informatica']),
-                ('Analisi Matematica II', 1, programs['Ingegneria Informatica']),
-                ('Fisica Generale II', 1, programs['Ingegneria Informatica']),
-                ('Fisica Generale I', 1, programs['Ingegneria Informatica']),
-                ('Matematica per l Ingegneria dell Informazione', 1, programs['Ingegneria Informatica']),
-                ('Programmazione I', 1, programs['Ingegneria Informatica']),
-                ('Inglese', 1, programs['Ingegneria Informatica']),
-                ('Calcolatori Elettronici', 1, programs['Ingegneria Informatica']),
-                ('Economia Aziendale', 1, programs['Ingegneria Informatica']),
-                ('Fondamenti di Telecomunicazione', 2, programs['Ingegneria Informatica']),
-                ('Sistemi Operativi', 2, programs['Ingegneria Informatica']),
-                ('Programmazione II', 2, programs['Ingegneria Informatica']),
-                ('Elettrotecnica', 2, programs['Ingegneria Informatica']),
-                ('Elettronica', 2, programs['Ingegneria Informatica']),
-                ('Sistemi Dinamici ', 2, programs['Ingegneria Informatica']),
-                ('Controlli Automatici', 2, programs['Ingegneria Informatica']),
-                ('Basi di Dati', 3, programs['Ingegneria Informatica']),
-                ('Misure Elettroniche', 3, programs['Ingegneria Informatica']),
-                ('Ingegneria del Software', 3, programs['Ingegneria Informatica']),
-                ('Algoritmi e Strutture Dati', 3, programs['Ingegneria Informatica']),
-                ('Computazione Pervasiva', 3, programs['Ingegneria Informatica']),
-                ('Data analycist', 3, programs['Ingegneria Informatica']),
-                ('PSR ', 3, programs['Ingegneria Informatica']),
+    # --- 3° Anno ---
+    ('Impianti Chimici per L^Energia', 3, programs['Ingegneria Energetica']),
+    ('Impianti Industriali', 3, programs['Ingegneria Energetica']),
+    ('Energetica', 3, programs['Ingegneria Energetica']),
+    ('Tecnologie delle Fonti Rinnovabili', 3, programs['Ingegneria Energetica']),
+    ('Sistemi Elettrici Industriali', 3, programs['Ingegneria Energetica']),
+    ('Elementi di Ingegneria Strutturali', 3, programs['Ingegneria Energetica']),
 
-                # ========================= Ingegneria Biomedica ===========================
-                ('Analisi Matematica I', 1, programs['Ingegneria Biomedica']),
-                ('Analisi Matematica II', 1, programs['Ingegneria Biomedica']),
-                ('Fisica Generale II', 1, programs['Ingegneria Biomedica']),
-                ('Fisica Generale I', 1, programs['Ingegneria Biomedica']),
-                ('Geometria e Algebra Lineare', 1, programs['Ingegneria Biomedica']),
-                ('Inglese', 1, programs['Ingegneria Biomedica']),
-                ('Chimica', 1, programs['Ingegneria Biomedica']),
-                ('Programmazione I', 1, programs['Ingegneria Biomedica']),
-                ('Programmazione II ed Inteligenza Artificiale', 1, programs['Ingegneria Biomedica']),
-                ('Misure Elettroniche', 2, programs['Ingegneria Biomedica']),
-                ('Elementi di Biochimica', 2, programs['Ingegneria Biomedica']),
-                ('Elettrotecnica', 2, programs['Ingegneria Biomedica']),
-                ('Elettronica', 2, programs['Ingegneria Biomedica']),
-                ('Matematica II', 2, programs['Ingegneria Biomedica']),
-                ('Sistemi Dinamici', 2, programs['Ingegneria Biomedica']),
-                ('Probabilità e segnali', 2, programs['Ingegneria Biomedica']),
-                ('Elaborazione Numerica dei segnali', 2, programs['Ingegneria Biomedica']),
-                ('BioElettromagnetismo', 3, programs['Ingegneria Biomedica']),
-                ('Sistemi di Acquisizione Dati', 3, programs['Ingegneria Biomedica']),
-                ('Sistemi Biomedicali', 3, programs['Ingegneria Biomedica']),
-                ('Laboratorio di BioElettronica', 3, programs['Ingegneria Biomedica']),
-                ('Laboratorio di Misure Elettroniche per Applicazioni Medicali', 3, programs['Ingegneria Biomedica']),
-                
+    # ========================== Ingegneria Civile =============================
+    # --- 1° Anno ---
+    ('Analisi Matematica I', 1, programs['Ingegneria Civile']),
+    ('Analisi Matematica II', 1, programs['Ingegneria Civile']),
+    ('Fisica Generale ', 1, programs['Ingegneria Civile']),
+    ('Geometria e Algebra Lineare', 1, programs['Ingegneria Civile']),
+    ('Elementi di Informatica', 1, programs['Ingegneria Civile']),
+    ('Scienze e tecnologia dei Materiali', 1, programs['Ingegneria Civile']),
+    ('Inglese', 1, programs['Ingegneria Civile']),
+
+    # --- 2° Anno ---
+    ('Meccanica Razionale', 2, programs['Ingegneria Civile']),
+    ('Scienza delle Costruzioni', 2, programs['Ingegneria Civile']),
+    ('Fisica Tecnica', 2, programs['Ingegneria Civile']),
+    ('Idraulica', 2, programs['Ingegneria Civile']),
+    ('Tecnica Urbanistica', 2, programs['Ingegneria Civile']),
+    ('Ingegneria dei Sistemi di trasporto I', 2, programs['Ingegneria Civile']),
+    ('Ingegneria dei Sistemi di trasporto II', 2, programs['Ingegneria Civile']),
+    ('Fondamenti di Infrastrutture Viaree', 2, programs['Ingegneria Civile']),
+    ('Climatologia dell Ambiente Costruito', 2, programs['Ingegneria Civile']),
+
+    # --- 3° Anno ---
+    ('Tecnica delle Costruzioni I', 3, programs['Ingegneria Civile']), # <-- VIRGOLA CORRETTA
+    ('Tecnica delle Costruzioni II', 3, programs['Ingegneria Civile']),
+    ('Costruzioni Idrauliche', 3, programs['Ingegneria Civile']),
+    ('Topografia e Cartografia', 3, programs['Ingegneria Civile']),
+    ('Principi di Geotecnica', 3, programs['Ingegneria Civile']),
+    ('Fondazioni ed Opere di Sostegno', 3, programs['Ingegneria Civile']),
+
+    # ======================== Ingegneria Informatica ==========================
+    # --- 1° Anno ---
+    ('Analisi Matematica I', 1, programs['Ingegneria Informatica']),
+    ('Analisi Matematica II', 1, programs['Ingegneria Informatica']),
+    ('Fisica Generale II', 1, programs['Ingegneria Informatica']),
+    ('Fisica Generale I', 1, programs['Ingegneria Informatica']),
+    ('Matematica per l Ingegneria dell Informazione', 1, programs['Ingegneria Informatica']),
+    ('Programmazione I', 1, programs['Ingegneria Informatica']),
+    ('Inglese', 1, programs['Ingegneria Informatica']),
+    ('Calcolatori Elettronici', 1, programs['Ingegneria Informatica']),
+    ('Economia Aziendale', 1, programs['Ingegneria Informatica']),
+
+    # --- 2° Anno ---
+    ('Fondamenti di Telecomunicazione', 2, programs['Ingegneria Informatica']),
+    ('Sistemi Operativi', 2, programs['Ingegneria Informatica']),
+    ('Programmazione II', 2, programs['Ingegneria Informatica']),
+    ('Elettrotecnica', 2, programs['Ingegneria Informatica']),
+    ('Elettronica', 2, programs['Ingegneria Informatica']),
+    ('Sistemi Dinamici ', 2, programs['Ingegneria Informatica']),
+    ('Controlli Automatici', 2, programs['Ingegneria Informatica']),
+    # --- 3° Anno ---
+    
+    ('Basi di Dati', 3, programs['Ingegneria Informatica']),
+    ('Misure Elettroniche', 3, programs['Ingegneria Informatica']),
+    ('Ingegneria del Software', 3, programs['Ingegneria Informatica']),
+    ('Algoritmi e Strutture Dati', 3, programs['Ingegneria Informatica']),
+    ('Computazione Pervasiva', 3, programs['Ingegneria Informatica']),
+    ('Data analycist', 3, programs['Ingegneria Informatica']),
+    ('PSR ', 3, programs['Ingegneria Informatica']),
+
+    # ========================= Ingegneria Biomedica ===========================
+    # --- 1° Anno ---
+    ('Analisi Matematica I', 1, programs['Ingegneria Biomedica']),
+    ('Analisi Matematica II', 1, programs['Ingegneria Biomedica']),
+    ('Fisica Generale II', 1, programs['Ingegneria Biomedica']),
+    ('Fisica Generale I', 1, programs['Ingegneria Biomedica']),
+    ('Geometria e Algebra Lineare', 1, programs['Ingegneria Biomedica']),
+    ('Inglese', 1, programs['Ingegneria Biomedica']),
+    ('Chimica', 1, programs['Ingegneria Biomedica']),
+    ('Programmazione I', 1, programs['Ingegneria Biomedica']),
+    ('Programmazione II ed Inteligenza Artificiale', 1, programs['Ingegneria Biomedica']),
+
+    # --- 2° Anno ---
+    ('Misure Elettroniche', 2, programs['Ingegneria Biomedica']),
+    ('Elementi di Biochimica', 2, programs['Ingegneria Biomedica']),
+    ('Elettrotecnica', 2, programs['Ingegneria Biomedica']),
+    ('Elettronica', 2, programs['Ingegneria Biomedica']),
+    ('Matematica II', 2, programs['Ingegneria Biomedica']),
+    ('Sistemi Dinamici', 2, programs['Ingegneria Biomedica']),
+    ('Probabilità e segnali', 2, programs['Ingegneria Biomedica']),
+    ('Elaborazione Numerica dei segnali', 2, programs['Ingegneria Biomedica']),
+
+    # --- 3° Anno ---
+    ('BioElettromagnetismo', 3, programs['Ingegneria Biomedica']),
+    ('Sistemi di Acquisizione Dati', 3, programs['Ingegneria Biomedica']),
+    ('Sistemi Biomedicali', 3, programs['Ingegneria Biomedica']),
+    ('Laboratorio di BioElettronica', 3, programs['Ingegneria Biomedica']),
+    ('Laboratorio di Misure Elettroniche per Applicazioni Medicali', 3, programs['Ingegneria Biomedica']),
+
+
                 # ========================== DST (Corsi Ufficiali) =============================
+                # --- Scienze Biologiche ---
                 ('BIOLOGIA E SISTEMATICA VEGETALE', 1, programs['Scienze Biologiche']),
                 ('CHIMICA GENERALE', 1, programs['Scienze Biologiche']),
                 ('CHIMICA ORGANICA', 1, programs['Scienze Biologiche']),
@@ -188,7 +206,10 @@ def initialize_database():
                 ('FARMACOLOGIA', 3, programs['Scienze Biologiche']),
                 ('FISIOLOGIA VEGETALE', 3, programs['Scienze Biologiche']),
                 ('LABORATORIO DI BIOLOGIA SPERIMENTALE', 3, programs['Scienze Biologiche']),
+                ('PROVA FINALE (Scienze Biologiche)', 3, programs['Scienze Biologiche']),
+                ('TIROCINIO (Scienze Biologiche)', 3, programs['Scienze Biologiche']),
 
+                # --- Biotecnologie ---
                 ('BIOLOGIA CELLULARE', 1, programs['Biotecnologie']),
                 ('BIOTECNOLOGIE E DIRITTO DELL UNIONE EUROPEA', 1, programs['Biotecnologie']),
                 ('CHIMICA GENERALE E INORGANICA (Biotecnologie)', 1, programs['Biotecnologie']),
@@ -209,7 +230,10 @@ def initialize_database():
                 ('FARMACOLOGIA E TOSSICOLOGIA', 3, programs['Biotecnologie']),
                 ('FITOCHIMICA E SUE APPLICAZIONI BIOTECNOLOGICHE', 3, programs['Biotecnologie']),
                 ('LABORATORI INTEGRATI', 3, programs['Biotecnologie']),
+                ('PROVA FINALE (Biotecnologie)', 3, programs['Biotecnologie']),
+                ('TIROCINIO FORMATIVO', 3, programs['Biotecnologie']),
 
+                # --- Scienze Naturali, Geologiche e Ambientali ---
                 ('CHIMICA GENERALE E INORGANICA (Scienze Naturali)', 1, programs['Scienze Naturali, Geologiche e Ambientali']),
                 ('CHIMICA ORGANICA CON ELEMENTI DI BIOCHIMICA', 1, programs['Scienze Naturali, Geologiche e Ambientali']),
                 ('FONDAMENTI DI BIOLOGIA', 1, programs['Scienze Naturali, Geologiche e Ambientali']),
@@ -229,8 +253,11 @@ def initialize_database():
                 ('ECOLOGIA (Scienze Naturali)', 3, programs['Scienze Naturali, Geologiche e Ambientali']),
                 ('GENETICA (Scienze Naturali)', 3, programs['Scienze Naturali, Geologiche e Ambientali']),
                 ('GEOFISICA DELLA TERRA SOLIDA', 3, programs['Scienze Naturali, Geologiche e Ambientali']),
+                ('PROVA FINALE (Scienze Naturali)', 3, programs['Scienze Naturali, Geologiche e Ambientali']),
                 ('SOSTENIBILITÀ AMBIENTALE E PROTEZIONE DELLA NATURA', 3, programs['Scienze Naturali, Geologiche e Ambientali']),
+                ('TIROCINIO (Scienze Naturali)', 3, programs['Scienze Naturali, Geologiche e Ambientali']),
 
+                # --- Scienze Motorie per lo Sport e la Salute ---
                 ('Anatomia Umana', 1, programs['Scienze Motorie per lo Sport e la Salute']),
                 ('Biologia applicata', 1, programs['Scienze Motorie per lo Sport e la Salute']),
                 ('Biochimica (Scienze Motorie)', 1, programs['Scienze Motorie per lo Sport e la Salute']),
