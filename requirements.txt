@@ -1,3 +1,5 @@
+# requirements.txt - Corretto
+
 Flask
 Flask-SQLAlchemy
 Flask-CORS
@@ -7,6 +9,7 @@ Flask-Login
 Werkzeug
 psycopg2-binary~=2.9.0
 flask-pymongo
-pymongo<4.0
+pymongo[srv]  # <-- MODIFICA QUESTA RIGA (o aggiungi dnspython separatamente)
 google-auth
 requests
+python-dotenv
