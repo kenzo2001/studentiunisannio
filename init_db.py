@@ -39,7 +39,7 @@ def initialize_database():
             print("ERRORE INIT_DB: Impossibile trovare uno o più dipartimenti. Assicurarsi che i dipartimenti siano stati creati correttamente.")
             return # Esci se i dipartimenti non sono stati creati
 
-        # --- 2. Popolamento Corsi di Laurea Triennale (Two Phases) ---
+        # --- 2. Popolamento Corsi di Laurea Triennale ---
         print("INIT_DB: Inizio fase combinata per i DegreeProgram.")
         
         # Data for canonical degree programs
@@ -59,69 +59,72 @@ def initialize_database():
             {'name': 'Scienze Motorie per lo Sport e la Salute', 'department': dst_dept},
         ]
 
-        # Phase 1: Create/Ensure canonical DegreeProgram entries and commit their IDs
-        for dp_data in degree_programs_canonical_data:
-            canonical_name = dp_data['name']
-            department = dp_data['department']
-            existing_dp = DegreeProgram.query.filter(
-                func.lower(DegreeProgram.name) == canonical_name.lower(),
-                DegreeProgram.department_id == department.id
-            ).first()
+        # Use a temporary dictionary to store canonical DegreeProgram objects
+        # This will help ensure we work with the most up-to-date object in the session
+        # and prevent re-querying for canonical_entry later, especially if new entries are flushed.
+        canonical_programs_map = {}
 
-            if not existing_dp:
-                new_program = DegreeProgram(name=canonical_name, department=department)
-                db.session.add(new_program)
-                print(f"INIT_DB: Aggiunto nuovo corso di laurea canonico: '{canonical_name}'.")
-            elif existing_dp.name != canonical_name:
-                print(f"INIT_DB: Normalizzando il nome del corso di laurea da '{existing_dp.name}' a '{canonical_name}' (ID {existing_dp.id}).")
-                existing_dp.name = canonical_name
-        
-        db.session.commit() # Commit all canonical entries to ensure they have IDs
-        print("INIT_DB: Canonical DegreePrograms created/updated and committed. Starting duplicate cleanup.")
-
-        # Phase 2: Clean up duplicates and re-link courses
-        with db.session.no_autoflush: # Use no_autoflush for this batch operation
+        with db.session.no_autoflush: # Disabilita l'autoflush per l'intera operazione complessa
             for dp_data in degree_programs_canonical_data:
                 canonical_name = dp_data['name']
                 department = dp_data['department']
                 
-                # Get the canonical entry (should exist and have an ID now)
-                canonical_entry = DegreeProgram.query.filter(
+                # Trova TUTTE le voci esistenti che corrispondono in modo case-insensitive per questo nome e dipartimento
+                all_matching_dps = DegreeProgram.query.filter(
                     func.lower(DegreeProgram.name) == canonical_name.lower(),
                     DegreeProgram.department_id == department.id
-                ).one()
-
-                # Find any remaining duplicates for this canonical name and department
-                duplicate_matches = DegreeProgram.query.filter(
-                    func.lower(DegreeProgram.name) == canonical_name.lower(),
-                    DegreeProgram.department_id == department.id,
-                    DegreeProgram.id != canonical_entry.id # Ensure it's truly a different ID
                 ).all()
 
-                for dp_duplicate in duplicate_matches:
-                    courses_to_relink = Course.query.filter_by(degree_program_id=dp_duplicate.id).all()
-                    for course in courses_to_relink:
-                        course.degree_program_id = canonical_entry.id # Relink to the canonical ID
-                    print(f"INIT_DB: Relinkati {len(courses_to_relink)} corsi dal duplicato ID {dp_duplicate.id} a canonico ID {canonical_entry.id}.")
-                    db.session.delete(dp_duplicate) # Mark the duplicate for deletion
-                    print(f"INIT_DB: Eliminato DegreeProgram duplicato: '{dp_duplicate.name}' (ID {dp_duplicate.id}).")
-        
-        db.session.commit() # Commit all changes from duplicate cleanup
-        print("INIT_DB: Duplicate DegreeProgram cleanup completed.")
+                current_canonical_entry = None
+
+                if all_matching_dps:
+                    # Cerca una corrispondenza esatta per il nome canonico tra quelle esistenti
+                    exact_match = next((dp for dp in all_matching_dps if dp.name == canonical_name), None)
+                    
+                    if exact_match:
+                        current_canonical_entry = exact_match
+                        print(f"INIT_DB: Trovata corrispondenza esatta per '{canonical_name}' (ID {current_canonical_entry.id}). Usandola come canonica.")
+                    else:
+                        # Se nessuna corrispondenza esatta, prendi la prima esistente e rendila canonica
+                        current_canonical_entry = all_matching_dps[0]
+                        print(f"INIT_DB: Nessuna versione esatta di '{canonical_name}' trovata. Usando '{all_matching_dps[0].name}' (ID {all_matching_dps[0].id}) come base canonica.")
+                        # Assicurati che l'entrata canonica abbia il nome corretto
+                        current_canonical_entry.name = canonical_name
+                        print(f"INIT_DB: Normalizzato il nome del corso di laurea da '{current_canonical_entry.name}' a '{canonical_name}' (ID {current_canonical_entry.id}).")
+                    
+                    # Processa i duplicati: re-linka i corsi ed elimina i DegreeProgram duplicati
+                    for dp_duplicate in all_matching_dps:
+                        if dp_duplicate.id != current_canonical_entry.id: # Se non è quello canonico
+                            courses_to_relink = Course.query.filter_by(degree_program_id=dp_duplicate.id).all()
+                            for course in courses_to_relink:
+                                course.degree_program_id = current_canonical_entry.id # Relinka
+                            print(f"INIT_DB: Relinkati {len(courses_to_relink)} corsi dal duplicato ID {dp_duplicate.id} a canonico ID {current_canonical_entry.id}.")
+                            db.session.delete(dp_duplicate) # Marca il duplicato per l'eliminazione
+                            print(f"INIT_DB: Eliminato DegreeProgram duplicato: '{dp_duplicate.name}' (ID {dp_duplicate.id}).")
+                
+                else: # Nessuna corrispondenza esistente trovata (anche case-insensitive)
+                    # Aggiungi la nuova entrata canonica
+                    new_program = DegreeProgram(name=canonical_name, department=department)
+                    db.session.add(new_program)
+                    current_canonical_entry = new_program # Imposta il nuovo oggetto come canonico
+                    print(f"INIT_DB: Aggiunto nuovo corso di laurea canonico: '{canonical_name}'.")
+
+                # Esegui un flush per assicurarti che le nuove entrate abbiano un ID
+                # e che le modifiche ai nomi siano riflesse, anche all'interno del no_autoflush.
+                db.session.flush() 
+                
+                # Salva l'oggetto canonico nel dizionario per un facile accesso futuro
+                canonical_programs_map[canonical_name] = current_canonical_entry
+
+
+        db.session.commit() # Esegui il commit di tutte le modifiche dalla fase combinata
+        print("INIT_DB: Fase combinata per i DegreeProgram completata.")
+
 
         # --- 3. Popolamento Esami ---
         try:
-            # Re-retrieve programs after all DegreeProgram operations are complete and committed
-            programs = {
-                'Ingegneria Energetica': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'ingegneria energetica').one(),
-                'Ingegneria Civile': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'ingegneria civile').one(),
-                'Ingegneria Informatica': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'ingegneria informatica').one(),
-                'Ingegneria Biomedica': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'ingegneria biomedica').one(),
-                'Scienze Biologiche': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'scienze biologiche').one(),
-                'Biotecnologie': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'biotecnologie').one(),
-                'Scienze Naturali, Geologiche e Ambientali': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'scienze naturali, geologiche e ambientali').one(),
-                'Scienze Motorie per lo Sport e la Salute': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'scienze motorie per lo sport e la salute').one(),
-            }
+            # Recupera i programmi. Ora usa la mappa che contiene solo le entrate canoniche e i loro ID.
+            programs = canonical_programs_map
 
             courses_to_add = [
     # ========================== Ingegneria Energetica ==========================
