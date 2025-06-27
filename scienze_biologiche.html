@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta name="description" content="Esplora i corsi di laurea e condividi appunti per il Dipartimento di Scienze e Tecnologie (DST) dell'Università del Sannio.">
+    <meta name="description" content="Appunti, dispense e materiale per tutti gli esami del corso di laurea in Scienze Biologiche a Unisannio. Scegli l'anno e trova le risorse che ti servono.">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>STUDENTI UNISANNIO - DST</title>
+    <title>STUDENTI UNISANNIO - Scienze Biologiche</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -29,26 +29,32 @@
     </nav>
 
     <main>
-        <div class="main-content-box">
-            <h2>Dipartimento di Scienze e Tecnologie</h2>
-            <p style="text-align: center;">Seleziona un corso di laurea per esplorare i corsi e i materiali dedicati.</p>
-            
-            <div class="ing-tabs-container">
-                <div class="ing-tabs">
-                    <a class="ing-button" href="scienze_biologiche.html">Scienze Biologiche</a>
-                    <a class="ing-button" href="biotecnologie.html">Biotecnologie</a>
-                    <a class="ing-button" href="scienze_naturali.html">Scienze Naturali, Geologiche e Ambientali</a>
-                    <a class="ing-button" href="scienze_motorie.html">Scienze Motorie</a>
-                </div>
-            </div>
+        <h2>Corsi di Scienze Biologiche</h2>
+        <p>Scegli l'anno di studio per visualizzare i corsi disponibili.</p>
 
-            <div style="text-align: center; margin-top: 40px;">
-                <a href="upload_note.html" class="btn-primario">Carica un Nuovo Appunto</a>
+        <div class="year-tabs-container">
+            <div class="year-tabs">
+                <button onclick="openYearTab(event, 'primoAnnoBiologia')">1° Anno</button>
+                <button onclick="openYearTab(event, 'secondoAnnoBiologia')">2° Anno</button>
+                <button onclick="openYearTab(event, 'terzoAnnoBiologia')">3° Anno</button>
             </div>
         </div>
+
+        <div id="primoAnnoBiologia" class="year-tabcontent"></div>
+        <div id="secondoAnnoBiologia" class="year-tabcontent"></div>
+        <div id="terzoAnnoBiologia" class="year-tabcontent"></div>
     </main>
-    
+
     <footer>
+        <div class="adsense-container">
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-client="ca-pub-8614560189633962"
+                 data-ad-slot="1234567890"
+                 data-ad-format="auto"
+                 data-full-width-responsive="true"></ins>
+            <script> (adsbygoogle = window.adsbygoogle || []).push({}); </script>
+        </div>
         <p>Per informazioni sull'associazione: <a href="mailto:cusas1991@gmail.com" style="color: white;">cusas1991@gmail.com</a></p>
         <p>Per supporto tecnico sul sito: <a href="mailto:francescoenzoalloro@gmail.com" style="color: white;">francescoenzoalloro@gmail.com</a></p>
         <p>&copy; 2025 Studenti Unisannio - Tutti i diritti riservati.</p>

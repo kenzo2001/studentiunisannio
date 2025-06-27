@@ -8,11 +8,30 @@ document.addEventListener('DOMContentLoaded', function() {
     // Quando sei in locale, tutte le chiamate API saranno fatte a http://127.0.0.1:5000/api/...
     // Quando il sito sarà online, le chiamate saranno fatte a https://studentiunisannio.it/api/...
     
+     // --- MAPPATURA AMPLIATA DEGLI ID DEI CORSI DI LAUREA ---
     const degreeProgramIds = {
-        'energetica': 1,
-        'civile': 2,
-        'informatica': 3,
-        'biomedica': 4
+        'ing_energetica': 1,
+        'ing_civile': 2,
+        'ing_informatica': 3,
+        'ing_biomedica': 4,
+        'scienze_biologiche': 7,
+        'biotecnologie': 8,
+        'scienze_naturali': 9, // Nome file semplificato
+        'scienze_motorie': 10
+    };
+    
+    // --- MAPPATURA AMPLIATA DEI TAB ---
+    const tabInfoMapping = {
+        // Ingegneria
+        'primoAnnoEnergetica': { degree_name: 'ing_energetica', year: 1 },'secondoAnnoEnergetica': { degree_name: 'ing_energetica', year: 2 },'terzoAnnoEnergetica': { degree_name: 'ing_energetica', year: 3 },
+        'primoAnnoCivile': { degree_name: 'ing_civile', year: 1 },'secondoAnnoCivile': { degree_name: 'ing_civile', year: 2 },'terzoAnnoCivile': { degree_name: 'ing_civile', year: 3 },
+        'primoAnnoInformatica': { degree_name: 'ing_informatica', year: 1 },'secondoAnnoInformatica': { degree_name: 'ing_informatica', year: 2 },'terzoAnnoInformatica': { degree_name: 'ing_informatica', year: 3 },
+        'primoAnnoBiomedica': { degree_name: 'ing_biomedica', year: 1 },'secondoAnnoBiomedica': { degree_name: 'ing_biomedica', year: 2 },'terzoAnnoBiomedica': { degree_name: 'ing_biomedica', year: 3 },
+        // DST
+        'primoAnnoBiologia': { degree_name: 'scienze_biologiche', year: 1 }, 'secondoAnnoBiologia': { degree_name: 'scienze_biologiche', year: 2 }, 'terzoAnnoBiologia': { degree_name: 'scienze_biologiche', year: 3 },
+        'primoAnnoBiotecnologie': { degree_name: 'biotecnologie', year: 1 }, 'secondoAnnoBiotecnologie': { degree_name: 'biotecnologie', year: 2 }, 'terzoAnnoBiotecnologie': { degree_name: 'biotecnologie', year: 3 },
+        'primoAnnoNaturali': { degree_name: 'scienze_naturali', year: 1 }, 'secondoAnnoNaturali': { degree_name: 'scienze_naturali', year: 2 }, 'terzoAnnoNaturali': { degree_name: 'scienze_naturali', year: 3 },
+        'primoAnnoMotorie': { degree_name: 'scienze_motorie', year: 1 }, 'secondoAnnoMotorie': { degree_name: 'scienze_motorie', year: 2 }, 'terzoAnnoMotorie': { degree_name: 'scienze_motorie', year: 3 }
     };
 
     // --- FUNZIONI GLOBALI ESEGUITE SU TUTTE LE PAGINE ---
