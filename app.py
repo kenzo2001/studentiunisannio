@@ -13,25 +13,30 @@ from flask_pymongo import PyMongo
 from bson.objectid import ObjectId
 from google.oauth2 import id_token
 from google.auth.transport import requests
-# Inizio del file app.py
-from dotenv import load_dotenv # Aggiungi questa linea
+from dotenv import load_dotenv
 
-load_dotenv() # Aggiungi questa linea
+# Carica le variabili d'ambiente una sola volta
+load_dotenv()
 
-from flask import Flask, jsonify, request, send_from_directory, redirect, url_for, session, current_app
 print("DEBUG: Avvio app.py")
 
 app = Flask(__name__, static_folder='.', static_url_path='/')
 
-# --- CONFIGURAZIONE ---
-# Chiave Segreta e Dominio Cookie
+# --- CONFIGURAZIONE CORS ---
+# Permette al frontend su "www" di comunicare con il backend sul dominio root.
+CORS(app, resources={
+    r"/api/*": {
+        "origins": ["https://studentiunisannio.it", "https://www.studentiunisannio.it"],
+        "supports_credentials": True
+    }
+})
+
+# --- CONFIGURAZIONE GENERALE ---
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'fallback-secret-key-per-sviluppo-locale')
 app.config['SESSION_COOKIE_DOMAIN'] = '.studentiunisannio.it'
-
-# NUOVA RIGA DA AGGIUNGERE
 app.config['ALLOWED_EMAIL_DOMAINS'] = ['unisannio.it', 'studenti.unisannio.it']
 
-# Database SQL (PostgreSQL)
+# --- CONFIGURAZIONE DATABASE SQL (POSTGRESQL/SQLITE) ---
 db_url = os.environ.get('DATABASE_URL')
 if db_url:
     app.config['SQLALCHEMY_DATABASE_URI'] = db_url.replace('postgres://', 'postgresql+psycopg2://')
@@ -40,19 +45,14 @@ else:
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# Database NoSQL (MongoDB) per gli utenti
+# --- CONFIGURAZIONE DATABASE NOSQL (MONGODB) ---
 mongo_uri_from_env = os.environ.get("MONGO_URI")
 if not mongo_uri_from_env:
-    raise ValueError("ERRORE CRITICO: La variabile d'ambiente MONGO_URI non è stata trovata. "
-                     "Assicurati che il file .env esista nella cartella principale e sia nominato correttamente.")
-
-print(f"DEBUG: La MONGO_URI letta dall'ambiente è: {mongo_uri_from_env}")
-
+    raise ValueError("ERRORE CRITICO: La variabile d'ambiente MONGO_URI non è stata trovata.")
 app.config["MONGO_URI"] = mongo_uri_from_env
-mongo = PyMongo() # 1. Crea un'istanza vuota di PyMongo
-mongo.init_app(app) # 2. Inizializzala con l'applicazione
+mongo = PyMongo(app)
 
-# AWS S3
+# --- CONFIGURAZIONE AWS S3 ---
 S3_BUCKET = os.environ.get("S3_BUCKET_NAME")
 S3_KEY = os.environ.get("AWS_ACCESS_KEY_ID")
 S3_SECRET = os.environ.get("AWS_SECRET_ACCESS_KEY")
@@ -66,13 +66,12 @@ if S3_KEY and S3_SECRET and S3_REGION and S3_BUCKET:
 else:
     print("ERRORE DEBUG: Variabili d'ambiente AWS S3 non impostate.")
 
-# Flask-Login
+# --- CONFIGURAZIONE FLASK-LOGIN ---
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-# --- MODELLI ---
+# --- MODELLI DATABASE ---
 
-# Modello Utente per MongoDB (da Modello A)
 class User(UserMixin):
     def __init__(self, user_data):
         self.id = str(user_data.get('_id'))
@@ -82,7 +81,6 @@ class User(UserMixin):
     def to_dict(self):
         return {"id": self.id, "username": self.username, "email": self.email}
 
-# Modelli Dati per SQL (da Modello B)
 class Department(db.Model):
     __tablename__ = 'departments'
     id = db.Column(db.Integer, primary_key=True)
@@ -118,7 +116,7 @@ class Note(db.Model):
     uploader_name = db.Column(db.String(80), nullable=True)
     def to_dict(self): return {"id": self.id, "title": self.title, "description": self.description, "s3_key": self.s3_key, "upload_date": self.upload_date.isoformat(), "course_id": self.course_id, "uploader_name": self.uploader_name}
 
-# --- GESTIONE SESSIONE UTENTE (da Modello A) ---
+# --- GESTIONE SESSIONE UTENTE ---
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -132,6 +130,7 @@ def unauthorized():
     return redirect(url_for('serve_login_page'))
 
 # --- ROTTE API ---
+
 @app.route('/api/google-login', methods=['POST'])
 def google_login():
     try:
@@ -140,82 +139,30 @@ def google_login():
         if not token:
             return jsonify({"error": "Token mancante"}), 400
 
-        # Verifica il token con Google
         idinfo = id_token.verify_oauth2_token(token, requests.Request(), os.environ.get('GOOGLE_CLIENT_ID'))
-
-        # Ottieni le informazioni dell'utente dal token
         user_email = idinfo['email']
         
-        # --- NUOVO BLOCCO DI CONTROLLO DOMINIO ---
         domain = user_email.split('@')[-1]
         if domain not in current_app.config['ALLOWED_EMAIL_DOMAINS']:
-            return jsonify({
-                "error": "Accesso consentito solo con email istituzionali (@unisannio.it o @studenti.unisannio.it)."
-            }), 403 # 403 Forbidden
-        # --- FINE BLOCCO DI CONTROLLO ---
+            return jsonify({"error": "Accesso consentito solo con email istituzionali."}), 403
 
-        user_name = idinfo.get('name', user_email.split('@')[0]) # Usa il nome o la parte locale dell'email
-
-        # Controlla se l'utente esiste, altrimenti creane uno nuovo (funzione di registrazione)
+        user_name = idinfo.get('name', user_email.split('@')[0])
         user_data = mongo.db.users.find_one({"email": user_email})
+        
         if not user_data:
-            print(f"INIT_DB: Creazione nuovo utente da Google: {user_email}")
-            # Crea un nuovo utente con una password casuale poiché non verrà utilizzata
             hashed_password = generate_password_hash(os.urandom(24).hex())
-            new_user_data = {
-                "username": user_name,
-                "email": user_email,
-                "password_hash": hashed_password,
-                "source": "google" # Opzionale: per tracciare la provenienza dell'utente
-            }
+            new_user_data = {"username": user_name, "email": user_email, "password_hash": hashed_password, "source": "google"}
             mongo.db.users.insert_one(new_user_data)
             user_data = mongo.db.users.find_one({"email": user_email})
 
         user = User(user_data)
         login_user(user)
         return jsonify({"message": "Login/Registrazione avvenuta con successo"}), 200
-
     except ValueError:
-        # Token non valido
         return jsonify({"error": "Token Google non valido o scaduto."}), 401
     except Exception as e:
-        print(f"ERRORE GOOGLE LOGIN: {e}")
-        return jsonify({"error": "Si è verificato un errore interno."}), 500
+        return jsonify({"error": f"Errore interno: {e}"}), 500
 
-
-    try:
-        data = request.get_json()
-        token = data['token']
-
-        # Verifica il token con Google
-        idinfo = id_token.verify_oauth2_token(token, requests.Request(), os.environ.get('GOOGLE_CLIENT_ID'))
-
-        # Ottieni le informazioni dell'utente dal token
-        user_email = idinfo['email']
-        user_name = idinfo.get('name', '')
-
-        # Controlla se l'utente esiste, altrimenti creane uno nuovo
-        user_data = mongo.db.users.find_one({"email": user_email})
-        if not user_data:
-            # Crea un nuovo utente con una password casuale poiché non verrà utilizzata
-            hashed_password = generate_password_hash(os.urandom(24))
-            user_data = {
-                "username": user_name,
-                "email": user_email,
-                "password_hash": hashed_password
-            }
-            mongo.db.users.insert_one(user_data)
-            user_data = mongo.db.users.find_one({"email": user_email})
-
-        user = User(user_data)
-        login_user(user)
-        return jsonify({"message": "Login successful"}), 200
-
-    except ValueError:
-        # Token non valido
-        return "Token non valido", 401
-
-# API Utenti che usano MongoDB (da Modello A)
 @app.route('/api/register', methods=['POST'])
 def register():
     data = request.get_json()
@@ -226,41 +173,14 @@ def register():
     if not all([username, email, password]):
         return jsonify({"error": "Dati mancanti"}), 400
 
-    # --- NUOVO BLOCCO DI CONTROLLO DOMINIO ---
     domain = email.split('@')[-1]
-    if domain not in current_app.config.get('ALLOWED_EMAIL_DOMAINS', []):
-        return jsonify({
-            "error": "Registrazione permessa solo con email istituzionali (@unisannio.it o @studenti.unisannio.it)."
-        }), 403 # 403 Forbidden
-    # --- FINE BLOCCO DI CONTROLLO ---
+    if domain not in current_app.config['ALLOWED_EMAIL_DOMAINS']:
+        return jsonify({"error": "Registrazione consentita solo con email istituzionali."}), 403
 
-    if mongo.db.users.find_one({"username": username}):
-        return jsonify({"error": "Username già in uso"}), 409
-    if mongo.db.users.find_one({"email": email}):
-        return jsonify({"error": "Email già in uso"}), 409
+    if mongo.db.users.find_one({"username": username}) or mongo.db.users.find_one({"email": email}):
+        return jsonify({"error": "Username o email già in uso"}), 409
 
-    mongo.db.users.insert_one({
-        "username": username,
-        "email": email,
-        "password_hash": generate_password_hash(password),
-        "source": "manual" # Opzionale: per tracciare la provenienza
-    })
-    return jsonify({"message": "Registrazione avvenuta con successo!"}), 201
-    data = request.get_json()
-    username = data.get('username')
-    email = data.get('email')
-    password = data.get('password')
-    if not all([username, email, password]):
-        return jsonify({"error": "Dati mancanti"}), 400
-    if mongo.db.users.find_one({"username": username}):
-        return jsonify({"error": "Username già in uso"}), 409
-    if mongo.db.users.find_one({"email": email}):
-        return jsonify({"error": "Email già in uso"}), 409
-    mongo.db.users.insert_one({
-        "username": username,
-        "email": email,
-        "password_hash": generate_password_hash(password)
-    })
+    mongo.db.users.insert_one({"username": username, "email": email, "password_hash": generate_password_hash(password), "source": "manual"})
     return jsonify({"message": "Registrazione avvenuta con successo!"}), 201
 
 @app.route('/api/login', methods=['POST'])
@@ -288,7 +208,6 @@ def get_status():
     else:
         return jsonify({"logged_in": False}), 200
 
-# API Dati che usano SQL (prese e adattate da Modello B)
 @app.route('/api/departments', methods=['GET'])
 def get_departments():
     departments = Department.query.order_by(Department.name).all()
@@ -307,6 +226,8 @@ def get_courses_by_year(degree_program_id, year):
 @app.route('/api/courses/<int:course_id>/notes', methods=['GET'])
 def get_notes_for_course(course_id):
     notes = Note.query.filter_by(course_id=course_id).order_by(Note.upload_date.desc()).all()
+    if not notes:
+        return jsonify({"message": "Nessun appunto trovato per questo corso."}), 404
     return jsonify([n.to_dict() for n in notes])
 
 @app.route('/api/upload_note', methods=['POST'])
@@ -341,9 +262,8 @@ def upload_note():
             db.session.commit()
             return jsonify({"message": "Appunto caricato con successo!"}), 201
         except Exception as e:
-            print(f"ERRORE UPLOAD: {e}")
             db.session.rollback()
-            return jsonify({"error": "Errore interno durante il salvataggio dell'appunto."}), 500
+            return jsonify({"error": f"Errore interno durante il salvataggio: {e}"}), 500
     return jsonify({"error": "Servizio di upload non configurato."}), 500
 
 @app.route('/api/notes/<int:note_id>/download', methods=['GET'])
@@ -356,9 +276,7 @@ def download_note(note_id):
         presigned_url = s3_client.generate_presigned_url('get_object', Params={'Bucket': S3_BUCKET, 'Key': note.s3_key}, ExpiresIn=300)
         return jsonify({"download_url": presigned_url})
     except Exception as e:
-        print(f"ERRORE DOWNLOAD: {e}")
         return jsonify({"error": "Impossibile generare il link per il download."}), 500
-
 
 # --- ROTTE PER SERVIRE FILE STATICI ---
 @app.route('/')
@@ -371,4 +289,9 @@ def serve_login_page():
 
 @app.route('/<path:filename>')
 def serve_static_files(filename):
+    if filename in ['.env', 'fly.toml', 'requirements.txt', 'password.txt']:
+        return "Accesso negato", 403
     return send_from_directory('.', filename)
+
+if __name__ == '__main__':
+    app.run(debug=True)
