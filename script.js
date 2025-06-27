@@ -16,7 +16,41 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     // --- FUNZIONI GLOBALI ESEGUITE SU TUTTE LE PAGINE ---
+    // ============== Logica per il Pop-up Donazioni (Modificata) ==============
+if (currentPage === 'index.html' || currentPage === '') {
+    const modalOverlay = document.getElementById('donation-modal-overlay');
+    const closeModalBtn = document.getElementById('modal-close-btn');
 
+    // La condizione che controllava localStorage è stata rimossa.
+    // Mostra il pop-up dopo 3 secondi ad ogni visita della pagina.
+    if (modalOverlay) {
+        setTimeout(() => {
+            modalOverlay.style.display = 'flex';
+        }, 3000);
+    }
+
+    // Funzione per chiudere il pop-up
+    const closeModal = () => {
+        if (modalOverlay) {
+            modalOverlay.style.display = 'none';
+        }
+    };
+
+    // Event listener per chiudere cliccando sulla 'X'
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeModal);
+    }
+
+    // Event listener per chiudere cliccando sullo sfondo
+    if (modalOverlay) {
+        modalOverlay.addEventListener('click', function(event) {
+            if (event.target === modalOverlay) {
+                closeModal();
+            }
+        });
+    }
+}
+// =======================================================================
     // ============== Logica per il Pop-up Donazioni ==============
 if (currentPage === 'index.html' || currentPage === '') {
     const modalOverlay = document.getElementById('donation-modal-overlay');
