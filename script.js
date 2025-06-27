@@ -1,34 +1,3 @@
-// Rendi la funzione di login con Google globalmente accessibile immediatamente
-window.onSignIn = function(googleUser) {
-    const messageDiv = document.getElementById('login-message') || document.getElementById('register-message');
-    if (messageDiv) {
-        messageDiv.textContent = 'Verifica in corso...';
-        messageDiv.className = 'auth-message';
-    }
-
-    const id_token = googleUser.credential;
-  
-    fetch(`${API_BASE_URL}/api/google-login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: id_token })
-    })
-    .then(response => {
-        if (response.ok) {
-            window.location.href = 'index.html';
-        } else {
-            return response.json().then(err => { throw new Error(err.error || 'Login con Google fallito.'); });
-        }
-    })
-    .catch(error => {
-        if (messageDiv) {
-            messageDiv.textContent = `Errore: ${error.message}`;
-            messageDiv.className = 'auth-message error';
-        }
-        console.error('Errore durante il login con Google:', error);
-    });
-}; // End of window.onSignIn function, ensuring it's global when script loads
-
 document.addEventListener('DOMContentLoaded', function() {
     const currentPage = window.location.pathname.split('/').pop();
 
@@ -37,7 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const degreeProgramIds = {
         'ing_energetica': 1, 'ing_civile': 2, 'ing_informatica': 3, 'ing_biomedica': 4,
-        'scienze_biologiche': 7, 'biotecnologie': 8, 'scienze_naturali': 9, 'scienze_motorie': 10
+        'scienze_biologiche': 5, 'biotecnologie': 9, 'scienze_naturali': 10, 'scienze_motorie': 11
     };
     
     const tabInfoMapping = {
@@ -50,7 +19,7 @@ document.addEventListener('DOMContentLoaded', function() {
         'primoAnnoNaturali': { degree_name: 'scienze_naturali', year: 1 }, 'secondoAnnoNaturali': { degree_name: 'scienze_naturali', year: 2 }, 'terzoAnnoNaturali': { degree_name: 'scienze_naturali', year: 3 },
         'primoAnnoMotorie': { degree_name: 'scienze_motorie', year: 1 }, 'secondoAnnoMotorie': { degree_name: 'scienze_motorie', year: 2 }, 'terzoAnnoMotorie': { degree_name: 'scienze_motorie', year: 3 }
     };
-    // ... il resto del tuo codice DOMContentLoaded ...
+
     function activateMainTabAndHeader() {
         const navLinks = document.querySelectorAll('.navbar a');
         const header = document.querySelector('header');
@@ -391,8 +360,58 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Non è più necessario assegnare window.onSignIn qui se è già definito globalmente
-    // window.onSignIn = onSignIn; 
-}); // End of DOMContentLoaded
+    function onSignIn(googleUser) {
+        const messageDiv = document.getElementById('login-message') || document.getElementById('register-message');
+        if (messageDiv) {
+            messageDiv.textContent = 'Verifica in corso...';
+            messageDiv.className = 'auth-message';
+        }
+    
+        const id_token = googleUser.credential;
+      
+        fetch(`${API_BASE_URL}/api/google-login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: id_token })
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.href = 'index.html';
+            } else {
+                return response.json().then(err => { throw new Error(err.error || 'Login con Google fallito.'); });
+            }
+        })
+        .catch(error => {
+            if (messageDiv) {
+                messageDiv.textContent = `Errore: ${error.message}`;
+                messageDiv.className = 'auth-message error';
+            }
+            console.error('Errore durante il login con Google:', error);
+        });
+    }
 
-// La funzione onSignIn è ora definita globalmente sopra il DOMContentLoaded
+    // --- ESECUZIONE ALL'AVVIO ---
+    
+    activateMainTabAndHeader();
+    updateUserStatusNavbar();
+    
+    if (document.getElementById('logoutLink')) {
+        document.getElementById('logoutLink').addEventListener('click', async function(e) {
+            e.preventDefault();
+            await fetch(`${API_BASE_URL}/api/logout`, { method: 'POST' });
+            window.location.href = 'login.html';
+        });
+    }
+
+    const isCoursePage = currentPage.startsWith('ing_') || ['scienze_biologiche.html', 'biotecnologie.html', 'scienze_naturali.html', 'scienze_motorie.html'].includes(currentPage);
+    if (isCoursePage && document.querySelector('.year-tabs button')) {
+        document.querySelector('.year-tabs button').click();
+    }
+    
+    if (['upload_note.html', 'login.html', 'register.html'].includes(currentPage)) {
+        setupAuthAndUploadPages();
+    }
+
+    // Rendi la funzione di login con Google globalmente accessibile
+    window.onSignIn = onSignIn;
+});
