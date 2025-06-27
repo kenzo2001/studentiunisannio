@@ -141,18 +141,19 @@ def initialize_database():
     ('Fondamenti di Telecomunicazione', 2, programs['Ingegneria Informatica']),
     ('Sistemi Operativi', 2, programs['Ingegneria Informatica']),
     ('Programmazione II', 2, programs['Ingegneria Informatica']),
+    ('Elettrotecnica', 2, programs['Ingegneria Informatica']),
+    ('Elettronica', 2, programs['Ingegneria Informatica']),
+    ('Sistemi Dinamici ', 2, programs['Ingegneria Informatica']),
+    ('Controlli Automatici', 2, programs['Ingegneria Informatica']),
     
     # --- 3° Anno ---
-    ('Elettrotecnica', 3, programs['Ingegneria Informatica']),
-    ('Elettronica', 3, programs['Ingegneria Informatica']),
-    ('Sistemi Dinamici ', 3, programs['Ingegneria Informatica']),
-    ('Controlli Automatici', 3, programs['Ingegneria Informatica']),
+  
     ('Basi di Dati', 3, programs['Ingegneria Informatica']),
     ('Misure Elettroniche', 3, programs['Ingegneria Informatica']),
     ('Ingegneria del Software', 3, programs['Ingegneria Informatica']),
     ('Algoritmi e Strutture Dati', 3, programs['Ingegneria Informatica']),
     ('Computazione Pervasiva', 3, programs['Ingegneria Informatica']),
-    ('Data analycist', 3, programs['Ingegneria Informatica']),
+    ('Data analitycs', 3, programs['Ingegneria Informatica']),
     ('PSR ', 3, programs['Ingegneria Informatica']),
 
     # ========================= Ingegneria Biomedica ===========================
