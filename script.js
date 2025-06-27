@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const degreeProgramIds = {
         'ing_energetica': 1, 'ing_civile': 2, 'ing_informatica': 3, 'ing_biomedica': 4,
-        'scienze_biologiche': 5, 'biotecnologie': 9, 'scienze_naturali': 10, 'scienze_motorie': 11
+        'scienze_biologiche': 7, 'biotecnologie': 8, 'scienze_naturali': 9, 'scienze_motorie': 10
     };
     
     const tabInfoMapping = {
