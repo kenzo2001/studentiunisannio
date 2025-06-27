@@ -312,15 +312,22 @@ def admin_required(f):
     return decorated_function
 
 # Endpoint per visualizzare appunti in attesa di approvazione
-@app.route('/api/admin/pending_notes', methods=['GET'])
+# NUOVO ENDPOINT: Ottiene TUTTI gli appunti per la gestione amministrativa
+@app.route('/api/admin/all_notes', methods=['GET'])
 @login_required
 @admin_required
-def get_pending_notes():
-    pending_notes = Note.query.filter_by(status='pending').order_by(Note.upload_date.desc()).all()
-    if not pending_notes:
-        return jsonify({"message": "Nessun appunto in attesa di approvazione."}), 404
-    return jsonify([n.to_dict() for n in pending_notes])
+def get_all_notes_for_admin():
+    # Recupera tutti gli appunti, indipendentemente dallo stato
+    all_notes = Note.query.order_by(Note.upload_date.desc()).all()
+    if not all_notes:
+        return jsonify({"message": "Nessun appunto trovato nel sistema."}), 404
+    return jsonify([n.to_dict() for n in all_notes])
 
+# Puoi mantenere get_pending_notes se desideri una sezione separata per solo quelli in attesa,
+# ma per la funzionalità richiesta, get_all_notes_for_admin è sufficiente.
+# Se vuoi rimuovere get_pending_notes e usare solo get_all_notes_for_admin,
+# allora devi aggiornare il frontend per chiamare /api/admin/all_notes.
+# Per ora, suggerisco di aggiungere questo e modificare il frontend per usarlo.
 # Endpoint per approvare un appunto
 @app.route('/api/admin/notes/<int:note_id>/approve', methods=['POST'])
 @login_required

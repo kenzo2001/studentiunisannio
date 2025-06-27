@@ -8,6 +8,37 @@ document.addEventListener('DOMContentLoaded', function() {
         'ing_energetica': 1, 'ing_civile': 2, 'ing_informatica': 3, 'ing_biomedica': 4,
         'scienze_biologiche': 5, 'biotecnologie': 9, 'scienze_naturali': 10, 'scienze_motorie': 11
     };
+    // --- Logica per il Pop-up Donazioni ---
+const donationModalOverlay = document.getElementById('donation-modal-overlay');
+const modalCloseBtn = document.getElementById('modal-close-btn');
+
+if (donationModalOverlay && modalCloseBtn) {
+    // Funzione per mostrare il modale
+    function showDonationModal() {
+        donationModalOverlay.style.display = 'flex'; // Usa 'flex' per centrare il contenuto
+    }
+
+    // Funzione per nascondere il modale
+    function hideDonationModal() {
+        donationModalOverlay.style.display = 'none';
+    }
+
+    // Event listener per il pulsante di chiusura
+    modalCloseBtn.addEventListener('click', hideDonationModal);
+
+    // Event listener per chiudere il modale cliccando all'esterno del contenuto
+    donationModalOverlay.addEventListener('click', function(event) {
+        if (event.target === donationModalOverlay) {
+            hideDonationModal();
+        }
+    });
+
+    // Esempio: Mostra il pop-up dopo 5 secondi sulla home page
+    // Puoi decidere la logica di attivazione che preferisci (es. scroll, click su un link, ecc.)
+    if (currentPage === '' || currentPage === 'index.html') {
+        setTimeout(showDonationModal, 5000); // Mostra dopo 5 secondi
+    }
+}
     
     const tabInfoMapping = {
         'primoAnnoEnergetica': { degree_name: 'ing_energetica', year: 1 },'secondoAnnoEnergetica': { degree_name: 'ing_energetica', year: 2 },'terzoAnnoEnergetica': { degree_name: 'ing_energetica', year: 3 },
@@ -223,65 +254,67 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // NUOVA FUNZIONE: Carica appunti in attesa per la dashboard admin
-    async function loadPendingNotesForAdmin() {
-        const pendingNotesListDiv = document.getElementById('pending-notes-list');
-        if (!pendingNotesListDiv) return; // Non siamo sulla pagina admin_dashboard.html
+  // NUOVA (o modificata) FUNZIONE: Carica TUTTI gli appunti per la dashboard admin
+async function loadAllNotesForAdmin() {
+    const notesListDiv = document.getElementById('pending-notes-list'); // Utilizziamo lo stesso div
+    if (!notesListDiv) return;
 
-        pendingNotesListDiv.innerHTML = '<p class="no-pending-notes">Caricamento appunti in attesa...</p>';
+    notesListDiv.innerHTML = '<p class="no-pending-notes">Caricamento appunti...</p>';
 
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/admin/pending_notes`);
-            if (response.status === 403) { // Accesso negato (non admin)
-                pendingNotesListDiv.innerHTML = '<p class="no-pending-notes" style="color: red;">Accesso negato. Solo gli amministratori possono visualizzare questa pagina.</p>';
-                return;
-            }
-            if (response.status === 404) { // Nessun appunto in attesa
-                pendingNotesListDiv.innerHTML = '<p class="no-pending-notes">Nessun appunto in attesa di approvazione.</p>';
-                return;
-            }
-            if (!response.ok) throw new Error(`Errore HTTP: ${response.status}`);
-            
-            const notesData = await response.json();
-            
-            let notesHtml = '<ul class="note-admin-list">';
-            if (Array.isArray(notesData) && notesData.length > 0) {
-                notesData.forEach(note => {
-                    notesHtml += `
-                        <li class="note-admin-item">
-                            <h3>${note.title}</h3>
-                            <p><strong>Descrizione:</strong> ${note.description || 'Nessuna descrizione.'}</p>
-                            <p><strong>Corso:</strong> ID ${note.course_id}</p> <p><strong>Caricato da:</strong> ${note.uploader_name || 'Anonimo'} il ${new Date(note.upload_date).toLocaleDateString()}</p>
-                            <p><strong>Status:</strong> <span class="status-${note.status}">${note.status.toUpperCase()}</span></p>
-                            <div class="note-actions">
-                                <button class="btn-approve" data-note-id="${note.id}">Approva</button>
-                                <button class="btn-reject" data-note-id="${note.id}">Rifiuta</button>
-                                <button class="btn-delete" data-note-id="${note.id}">Elimina</button>
-                            </div>
-                        </li>`;
-                });
-            } else {
-                notesHtml += `<p class="no-pending-notes">${notesData.message || 'Nessun appunto disponibile.'}</p>`;
-            }
-            notesHtml += `</ul>`;
-            pendingNotesListDiv.innerHTML = notesHtml;
-
-            // Aggiungi event listener ai bottoni (logica placeholder per ora)
-            pendingNotesListDiv.querySelectorAll('.btn-approve').forEach(button => {
-                button.addEventListener('click', () => handleNoteAction(button.dataset.noteId, 'approve'));
-            });
-            pendingNotesListDiv.querySelectorAll('.btn-reject').forEach(button => {
-                button.addEventListener('click', () => handleNoteAction(button.dataset.noteId, 'reject'));
-            });
-            pendingNotesListDiv.querySelectorAll('.btn-delete').forEach(button => {
-                button.addEventListener('click', () => handleNoteAction(button.dataset.noteId, 'delete'));
-            });
-
-        } catch (error) {
-            console.error('Errore caricamento appunti in attesa:', error);
-            pendingNotesListDiv.innerHTML = '<p class="no-pending-notes" style="color: red;">Errore nel caricamento degli appunti in attesa. Controlla la console.</p>';
+    try {
+        // Chiamata al nuovo endpoint che restituisce tutti gli appunti
+        const response = await fetch(`${API_BASE_URL}/api/admin/all_notes`); 
+        if (response.status === 403) {
+            notesListDiv.innerHTML = '<p class="no-pending-notes" style="color: red;">Accesso negato. Solo gli amministratori possono visualizzare questa pagina.</p>';
+            return;
         }
-    }
+        if (response.status === 404) {
+            notesListDiv.innerHTML = '<p class="no-pending-notes">Nessun appunto disponibile nel sistema.</p>';
+            return;
+        }
+        if (!response.ok) throw new Error(`Errore HTTP: ${response.status}`);
 
+        const notesData = await response.json();
+
+        let notesHtml = '<ul class="note-admin-list">';
+        if (Array.isArray(notesData) && notesData.length > 0) {
+            notesData.forEach(note => {
+                notesHtml += `
+                    <li class="note-admin-item">
+                        <h3>${note.title}</h3>
+                        <p><strong>Descrizione:</strong> ${note.description || 'Nessuna descrizione.'}</p>
+                        <p><strong>Corso:</strong> ID ${note.course_id}</p>
+                        <p><strong>Caricato da:</strong> ${note.uploader_name || 'Anonimo'} il ${new Date(note.upload_date).toLocaleDateString()}</p>
+                        <p><strong>Status:</strong> <span class="status-${note.status}">${note.status.toUpperCase()}</span></p>
+                        <div class="note-actions">
+                            ${note.status !== 'approved' ? `<button class="btn-approve" data-note-id="${note.id}">Approva</button>` : ''}
+                            ${note.status !== 'rejected' ? `<button class="btn-reject" data-note-id="${note.id}">Rifiuta</button>` : ''}
+                            <button class="btn-delete" data-note-id="${note.id}">Elimina</button>
+                        </div>
+                    </li>`;
+            });
+        } else {
+            notesHtml += `<p class="no-pending-notes">${notesData.message || 'Nessun appunto disponibile.'}</p>`;
+        }
+        notesHtml += `</ul>`;
+        notesListDiv.innerHTML = notesHtml;
+
+        // Aggiungi event listener ai bottoni
+        notesListDiv.querySelectorAll('.btn-approve').forEach(button => {
+            button.addEventListener('click', () => handleNoteAction(button.dataset.noteId, 'approve'));
+        });
+        notesListDiv.querySelectorAll('.btn-reject').forEach(button => {
+            button.addEventListener('click', () => handleNoteAction(button.dataset.noteId, 'reject'));
+        });
+        notesListDiv.querySelectorAll('.btn-delete').forEach(button => {
+            button.addEventListener('click', () => handleNoteAction(button.dataset.noteId, 'delete'));
+        });
+
+    } catch (error) {
+        console.error('Errore caricamento appunti:', error);
+        notesListDiv.innerHTML = '<p class="no-pending-notes" style="color: red;">Errore nel caricamento degli appunti. Controlla la console.</p>';
+    }
+}
     // Funzione placeholder per gestire le azioni admin (Approva, Rifiuta, Elimina)
     async function handleNoteAction(noteId, action) {
         console.log(`Azione: ${action} per appunto ID: ${noteId}`);
@@ -492,8 +525,11 @@ document.addEventListener('DOMContentLoaded', function() {
     activateMainTabAndHeader();
     updateUserStatusNavbar();
     
-    if (document.getElementById('logoutLink')) { // Aggiornato l'ID del link di logout nella navbar
-        document.getElementById('logoutLink').addEventListener('click', async function(e) {
+   // Cerca il link di logout nella navbar
+    const logoutLinkElement = document.getElementById('nav-logout'); 
+
+    if (logoutLinkElement) { 
+        logoutLinkElement.addEventListener('click', async function(e) {
             e.preventDefault();
             await fetch(`${API_BASE_URL}/api/logout`, { method: 'POST' });
             window.location.href = 'login.html';
@@ -510,10 +546,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Se siamo nella dashboard admin, carica gli appunti in attesa
-    if (currentPage === 'admin_dashboard.html') {
-        loadPendingNotesForAdmin();
-    }
-
+  // Se siamo nella dashboard admin, carica tutti gli appunti per la gestione
+if (currentPage === 'admin_dashboard.html') {
+    loadAllNotesForAdmin(); // Chiamata alla nuova funzione
+}
     // Rendi la funzione di login con Google globalmente accessibile
     window.onSignIn = onSignIn;
 });
