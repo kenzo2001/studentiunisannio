@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  
   <url>
     <loc>https://studentiunisannio.it/index.html</loc>
   </url>
@@ -12,6 +13,7 @@
   <url>
     <loc>https://studentiunisannio.it/demm.html</loc>
   </url>
+  
   <url>
     <loc>https://studentiunisannio.it/ing_informatica.html</loc>
   </url>
@@ -24,4 +26,18 @@
   <url>
     <loc>https://studentiunisannio.it/ing_biomedica.html</loc>
   </url>
+
+  <url>
+    <loc>https://studentiunisannio.it/scienze_biologiche.html</loc>
+  </url>
+  <url>
+    <loc>https://studentiunisannio.it/biotecnologie.html</loc>
+  </url>
+  <url>
+    <loc>https://studentiunisannio.it/scienze_naturali.html</loc>
+  </url>
+  <url>
+    <loc>https://studentiunisannio.it/scienze_motorie.html</loc>
+  </url>
+
 </urlset>
