@@ -55,66 +55,62 @@ def initialize_database():
             {'name': 'Scienze Motorie per lo Sport e la Salute', 'department': dst_dept},
         ]
 
-        # Fase 1: Assicurare tutti i DegreeProgram canonici e commetterli per avere ID stabili
-        print("INIT_DB: Fase 1 - Assicurando l'esistenza dei DegreeProgram canonici.")
-        for dp_data in degree_programs_to_ensure:
-            canonical_name = dp_data['name']
-            department = dp_data['department']
-            
-            existing_program = DegreeProgram.query.filter(
-                func.lower(DegreeProgram.name) == canonical_name.lower(),
-                DegreeProgram.department_id == department.id
-            ).first() # Usa first() per ottenere uno solo se ci sono duplicati
+        # Fase Combinata: Assicurare l'esistenza dei DegreeProgram canonici, normalizzare i nomi,
+        # re-linkare i Corsi e eliminare i duplicati.
+        print("INIT_DB: Inizio fase combinata per i DegreeProgram.")
+        with db.session.no_autoflush: # Disabilita l'autoflush per l'intera operazione complessa
+            for dp_data in degree_programs_to_ensure:
+                canonical_name = dp_data['name']
+                department = dp_data['department']
+                
+                # Trova TUTTE le voci esistenti che corrispondono in modo case-insensitive per questo nome e dipartimento
+                existing_matches = DegreeProgram.query.filter(
+                    func.lower(DegreeProgram.name) == canonical_name.lower(),
+                    DegreeProgram.department_id == department.id
+                ).all()
 
-            if not existing_program:
-                # Se nessun programma corrispondente (case-insensitive) esiste, aggiungi quello canonico
-                new_program = DegreeProgram(name=canonical_name, department=department)
-                db.session.add(new_program)
-                print(f"INIT_DB: Aggiunto nuovo corso di laurea: '{canonical_name}'")
-            elif existing_program.name != canonical_name:
-                # Se un programma esiste ma il suo nome non è canonico, aggiornalo
-                existing_program.name = canonical_name
-                print(f"INIT_DB: Normalizzato nome corso di laurea da '{existing_program.name}' a '{canonical_name}'")
-            
-        db.session.commit() # Esegui il commit della Fase 1 per assicurare che tutti i DegreeProgram canonici abbiano un ID
+                canonical_entry = None
 
-        # Fase 2: Identificare e pulire i duplicati rimanenti e re-linkare i Corsi
-        print("INIT_DB: Fase 2 - Pulizia duplicati e re-link dei corsi.")
-        for dp_data in degree_programs_to_ensure:
-            canonical_name = dp_data['name']
-            department = dp_data['department']
+                if existing_matches:
+                    # Cerca una corrispondenza esatta per il nome canonico tra quelle esistenti
+                    canonical_entry = next((dp for dp in existing_matches if dp.name == canonical_name), None)
+                    
+                    if not canonical_entry:
+                        # Se nessuna corrispondenza esatta, prendi la prima esistente e rendila canonica
+                        canonical_entry = existing_matches[0]
+                        print(f"INIT_DB: Nessuna versione esatta di '{canonical_name}' trovata. Usando '{existing_matches[0].name}' (ID {existing_matches[0].id}) come base canonica.")
+                        
+                    # Assicurati che l'entrata canonica abbia il nome corretto
+                    if canonical_entry.name != canonical_name:
+                        print(f"INIT_DB: Normalizzando il nome del corso di laurea da '{canonical_entry.name}' a '{canonical_name}' (ID {canonical_entry.id}).")
+                        canonical_entry.name = canonical_name
+                    
+                    # Processa i duplicati: re-linka i corsi ed elimina i DegreeProgram duplicati
+                    for dp_duplicate in existing_matches:
+                        if dp_duplicate.id != canonical_entry.id: # Se non è quello canonico
+                            courses_to_relink = Course.query.filter_by(degree_program_id=dp_duplicate.id).all()
+                            for course in courses_to_relink:
+                                course.degree_program_id = canonical_entry.id # Relinka
+                            print(f"INIT_DB: Relinkati {len(courses_to_relink)} corsi dal duplicato ID {dp_duplicate.id} a canonico ID {canonical_entry.id}.")
+                            db.session.delete(dp_duplicate) # Marca il duplicato per l'eliminazione
+                            print(f"INIT_DB: Eliminato DegreeProgram duplicato: '{dp_duplicate.name}' (ID {dp_duplicate.id}).")
+                
+                else: # Nessuna corrispondenza esistente trovata (anche case-insensitive)
+                    # Aggiungi la nuova entrata canonica
+                    new_program = DegreeProgram(name=canonical_name, department=department)
+                    db.session.add(new_program)
+                    canonical_entry = new_program # Imposta il nuovo oggetto come canonico
+                    print(f"INIT_DB: Aggiunto nuovo corso di laurea canonico: '{canonical_name}'.")
 
-            # Recupera l'entrata canonica (garantita esistere e avere un ID dalla Fase 1)
-            canonical_entry = DegreeProgram.query.filter(
-                func.lower(DegreeProgram.name) == canonical_name.lower(),
-                DegreeProgram.department_id == department.id
-            ).one() # Usa .one() qui perché ci aspettiamo esattamente un risultato
+                # canonical_entry sarà tracciato dalla sessione se il suo nome è stato aggiornato o è stato appena aggiunto.
 
-            # Trova tutte le ALTRE voci che corrispondono case-insensitive ma non sono l'entrata canonica
-            duplicate_programs = DegreeProgram.query.filter(
-                func.lower(DegreeProgram.name) == canonical_name.lower(),
-                DegreeProgram.department_id == department.id,
-                DegreeProgram.id != canonical_entry.id # Escludi l'ID dell'entrata canonica
-            ).all()
+        db.session.commit() # Esegui il commit di tutte le modifiche dalla fase combinata
+        print("INIT_DB: Fase combinata per i DegreeProgram completata.")
 
-            if duplicate_programs:
-                print(f"INIT_DB: Trovati {len(duplicate_programs)} duplicati da rimuovere per '{canonical_name}' (dipartimento {department.id}).")
-                with db.session.no_autoflush: # Usa no_autoflush per questo blocco di aggiornamenti/eliminazioni
-                    for dp_duplicate in duplicate_programs:
-                        courses_to_relink = Course.query.filter_by(degree_program_id=dp_duplicate.id).all()
-                        for course in courses_to_relink:
-                            course.degree_program_id = canonical_entry.id # Relinka all'ID canonico
-                        print(f"INIT_DB: Relinkati {len(courses_to_relink)} corsi dal duplicato ID {dp_duplicate.id} al canonico ID {canonical_entry.id}.")
-                        db.session.delete(dp_duplicate) # Marca il duplicato per l'eliminazione
-                    print(f"INIT_DB: Completato re-link e marcatura per eliminazione per i duplicati di '{canonical_name}'.")
-        
-        db.session.commit() # Commit della Fase 2: re-link e eliminazione dei duplicati
-        print("INIT_DB: Pulizia duplicati corsi di laurea completata.")
 
         # --- 3. Popolamento Esami ---
         try:
-            # Recupera i programmi di laurea con un controllo case-insensitive per sicurezza
-            # Ora queste chiamate .one() dovrebbero funzionare perché i duplicati sono stati gestiti
+            # Recupera i programmi. Ora, .one() dovrebbe funzionare poiché i duplicati sono stati gestiti.
             programs = {
                 'Ingegneria Energetica': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'ingegneria energetica').one(),
                 'Ingegneria Civile': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'ingegneria civile').one(),
