@@ -43,7 +43,7 @@ def initialize_database():
             {'name': 'Scienze Biologiche', 'department': dst_dept},
             {'name': 'Biotecnologie', 'department': dst_dept},
             {'name': 'Scienze Naturali', 'department': dst_dept},
-            {'name': 'Scienze Motorie per lo Sport e la Salute', 'department': dst_dept},
+            {'name': 'Scienze Motorie', 'department': dst_dept},
         ]
         for dp_data in degree_programs_to_ensure:
             if not DegreeProgram.query.filter_by(name=dp_data['name']).first():
@@ -60,7 +60,7 @@ def initialize_database():
                 'Scienze Biologiche': DegreeProgram.query.filter_by(name='Scienze Biologiche').one(),
                 'Biotecnologie': DegreeProgram.query.filter_by(name='Biotecnologie').one(),
                 'Scienze Naturali': DegreeProgram.query.filter_by(name='Scienze Naturali').one(),
-                'Scienze Motorie per lo Sport e la Salute': DegreeProgram.query.filter_by(name='Scienze Motorie per lo Sport e la Salute').one(),
+                'Scienze Motorie': DegreeProgram.query.filter_by(name='Scienze Motorie').one(),
             }
 
             courses_to_add = [
@@ -101,9 +101,9 @@ def initialize_database():
             
                 
                 # Scienze Motorie
-                ('Anatomia Umana', 1, programs['Scienze Motorie per lo Sport e la Salute']), ('Biologia applicata', 1, programs['Scienze Motorie per lo Sport e la Salute']), ('Biochimica (Scienze Motorie)', 1, programs['Scienze Motorie per lo Sport e la Salute']), ('Fisica con elementi di biomeccanica', 1, programs['Scienze Motorie per lo Sport e la Salute']), ('Principi di diritto e management dello sport', 1, programs['Scienze Motorie per lo Sport e la Salute']), ('Inglese scientifico', 1, programs['Scienze Motorie per lo Sport e la Salute']), ('Teoria del movimento e tecnica dell\'attività motoria e sportiva', 1, programs['Scienze Motorie per lo Sport e la Salute']), ('Pedagogia e sociologia della comunicazione', 1, programs['Scienze Motorie per lo Sport e la Salute']),
-                ('Informatica e Statistica', 2, programs['Scienze Motorie per lo Sport e la Salute']), ('Metodologie didattiche per le attivita\' sportive', 2, programs['Scienze Motorie per lo Sport e la Salute']), ('Didattica e pedagogia speciale', 2, programs['Scienze Motorie per lo Sport e la Salute']), ('Fisiologia umana applicata alle scienze motorie', 2, programs['Scienze Motorie per lo Sport e la Salute']), ('Teoria dell\'allenamento e metodi di valutazione motoria', 2, programs['Scienze Motorie per lo Sport e la Salute']), ('Bioingegneria applicata alle scienze motorie', 2, programs['Scienze Motorie per lo Sport e la Salute']),
-                ('Basi di nutrizione applicata allo sport', 3, programs['Scienze Motorie per lo Sport e la Salute']), ('Igiene', 3, programs['Scienze Motorie per lo Sport e la Salute']), ('Genetica e performance sportiva', 3, programs['Scienze Motorie per lo Sport e la Salute']), ('Patologia generale', 3, programs['Scienze Motorie per lo Sport e la Salute']), ('Farmacologia applicata allo sport', 3, programs['Scienze Motorie per lo Sport e la Salute']),
+                ('Anatomia Umana', 1, programs['Scienze Motorie']), ('Biologia applicata', 1, programs['Scienze Motorie']), ('Biochimica (Scienze Motorie)', 1, programs['Scienze Motorie']), ('Fisica con elementi di biomeccanica', 1, programs['Scienze Motorie']), ('Principi di diritto e management dello sport', 1, programs['Scienze Motorie']), ('Inglese scientifico', 1, programs['Scienze Motorie']), ('Teoria del movimento e tecnica dell\'attività motoria e sportiva', 1, programs['Scienze Motorie']), ('Pedagogia e sociologia della comunicazione', 1, programs['Scienze Motorie']),
+                ('Informatica e Statistica', 2, programs['Scienze Motorie']), ('Metodologie didattiche per le attivita\' sportive', 2, programs['Scienze Motorie']), ('Didattica e pedagogia speciale', 2, programs['Scienze Motorie']), ('Fisiologia umana applicata alle scienze motorie', 2, programs['Scienze Motorie']), ('Teoria dell\'allenamento e metodi di valutazione motoria', 2, programs['Scienze Motorie']), ('Bioingegneria applicata alle scienze motorie', 2, programs['Scienze Motorie']),
+                ('Basi di nutrizione applicata allo sport', 3, programs['Scienze Motorie']), ('Igiene', 3, programs['Scienze Motorie']), ('Genetica e performance sportiva', 3, programs['Scienze Motorie']), ('Patologia generale', 3, programs['Scienze Motorie']), ('Farmacologia applicata allo sport', 3, programs['Scienze Motorie']),
             ]
             
             for name, year, program_obj in courses_to_add:
