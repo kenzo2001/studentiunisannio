@@ -33,3 +33,9 @@ primary_region = 'fra'
   memory = '1gb'
   cpu_kind = 'shared'
   cpus = 1
+
+
+  [[redirects]]
+from = "www.studentiunisannio.it"
+to = "https://studentiunisannio.it"
+type = "permanent"
