@@ -2,6 +2,7 @@ import os
 from app import app, db, Department, DegreeProgram, Course, Note
 from werkzeug.security import generate_password_hash
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy import func # Import func for case-insensitive queries
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
@@ -23,15 +24,21 @@ def initialize_database():
         # --- 1. Popolamento Dipartimenti ---
         departments_to_ensure = ['DING', 'DST', 'DEMM']
         for dept_name in departments_to_ensure:
-            if not Department.query.filter_by(name=dept_name).first():
+            # Controllo case-insensitive per i dipartimenti
+            if not Department.query.filter(func.lower(Department.name) == dept_name.lower()).first():
                 db.session.add(Department(name=dept_name))
         db.session.commit()
 
         # --- 2. Popolamento Corsi di Laurea Triennale ---
-        ding_dept = Department.query.filter_by(name='DING').one()
-        dst_dept = Department.query.filter_by(name='DST').one()
-        demm_dept = Department.query.filter_by(name='DEMM').one()
-        
+        # Recupera i dipartimenti con un controllo case-insensitive per sicurezza
+        ding_dept = Department.query.filter(func.lower(Department.name) == 'ding').one_or_none()
+        dst_dept = Department.query.filter(func.lower(Department.name) == 'dst').one_or_none()
+        demm_dept = Department.query.filter(func.lower(Department.name) == 'demm').one_or_none()
+
+        if not ding_dept or not dst_dept or not demm_dept:
+            print("ERRORE INIT_DB: Impossibile trovare uno o più dipartimenti. Assicurarsi che i dipartimenti siano stati creati correttamente.")
+            return # Esci se i dipartimenti non sono stati creati
+
         degree_programs_to_ensure = [
             # DING
             {'name': 'Ingegneria Energetica', 'department': ding_dept},
@@ -47,22 +54,68 @@ def initialize_database():
             {'name': 'Scienze Naturali, Geologiche e Ambientali', 'department': dst_dept},
             {'name': 'Scienze Motorie per lo Sport e la Salute', 'department': dst_dept},
         ]
+
+        # Aggiunta logica per gestire i duplicati case-insensitive nei corsi di laurea
         for dp_data in degree_programs_to_ensure:
-            if not DegreeProgram.query.filter_by(name=dp_data['name']).first():
-                db.session.add(DegreeProgram(name=dp_data['name'], department=dp_data['department']))
-        db.session.commit()
+            canonical_name = dp_data['name']
+            department_id = dp_data['department'].id
+            
+            # Trova tutte le voci esistenti che corrispondono in modo case-insensitive per questo nome e dipartimento
+            existing_matches = DegreeProgram.query.filter(
+                func.lower(DegreeProgram.name) == canonical_name.lower(),
+                DegreeProgram.department_id == department_id
+            ).all()
+
+            if len(existing_matches) > 1:
+                print(f"INIT_DB: Trovati {len(existing_matches)} duplicati per '{canonical_name}' (dipartimento {department_id}). Mantenendo la versione canonica e rimuovendo gli altri.")
+                
+                canonical_entry = next((dp for dp in existing_matches if dp.name == canonical_name), None)
+                
+                # Se non esiste una versione esattamente canonica, usa la prima trovata e normalizzala
+                if not canonical_entry:
+                    canonical_entry = existing_matches[0] # Pick the first if exact canonical not found among matches
+                    print(f"INIT_DB: Nessuna versione esatta del nome canonico '{canonical_name}' trovata tra i duplicati. Usando ID {canonical_entry.id} come canonico.")
+                
+                # Aggiorna tutti i corsi collegati ai duplicati per puntare all'entrata canonica
+                for dp_duplicate in existing_matches:
+                    if dp_duplicate.id != canonical_entry.id:
+                        courses_to_relink = Course.query.filter_by(degree_program_id=dp_duplicate.id).all()
+                        for course in courses_to_relink:
+                            course.degree_program_id = canonical_entry.id
+                            db.session.add(course) # Marca per aggiornamento
+                        print(f"INIT_DB: Relinkati {len(courses_to_relink)} corsi dal duplicato ID {dp_duplicate.id} al canonico ID {canonical_entry.id}.")
+                        db.session.delete(dp_duplicate) # Elimina il DegreeProgram duplicato dopo il re-link
+                
+                # Assicurati che l'entrata canonica abbia il nome esatto e sia in sessione per il commit
+                canonical_entry.name = canonical_name
+                db.session.add(canonical_entry)
+
+            elif len(existing_matches) == 1:
+                # Se ne esiste solo una, assicurati che il suo nome sia canonico
+                existing_program = existing_matches[0]
+                if existing_program.name != canonical_name:
+                    print(f"INIT_DB: Normalizzando il nome del corso di laurea da '{existing_program.name}' a '{canonical_name}'")
+                    existing_program.name = canonical_name
+            else: # len(existing_matches) == 0
+                # Nessuna voce esistente, aggiungi quella canonica
+                db.session.add(DegreeProgram(name=canonical_name, department=dp_data['department']))
+        
+        db.session.commit() # Commit delle modifiche dopo aver assicurato i programmi canonici
+
 
         # --- 3. Popolamento Esami ---
         try:
+            # Recupera i programmi di laurea con un controllo case-insensitive per sicurezza
+            # Ora queste chiamate .one() dovrebbero funzionare perché i duplicati sono stati gestiti
             programs = {
-                'Ingegneria Energetica': DegreeProgram.query.filter_by(name='Ingegneria Energetica').one(),
-                'Ingegneria Civile': DegreeProgram.query.filter_by(name='Ingegneria Civile').one(),
-                'Ingegneria Informatica': DegreeProgram.query.filter_by(name='Ingegneria Informatica').one(),
-                'Ingegneria Biomedica': DegreeProgram.query.filter_by(name='Ingegneria Biomedica').one(),
-                'Scienze Biologiche': DegreeProgram.query.filter_by(name='Scienze Biologiche').one(),
-                'Biotecnologie': DegreeProgram.query.filter_by(name='Biotecnologie').one(),
-                'Scienze Naturali, Geologiche e Ambientali': DegreeProgram.query.filter_by(name='Scienze Naturali, Geologiche e Ambientali').one(),
-                'Scienze Motorie per lo Sport e la Salute': DegreeProgram.query.filter_by(name='Scienze Motorie per lo Sport e la Salute').one(),
+                'Ingegneria Energetica': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'ingegneria energetica').one(),
+                'Ingegneria Civile': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'ingegneria civile').one(),
+                'Ingegneria Informatica': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'ingegneria informatica').one(),
+                'Ingegneria Biomedica': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'ingegneria biomedica').one(),
+                'Scienze Biologiche': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'scienze biologiche').one(),
+                'Biotecnologie': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'biotecnologie').one(),
+                'Scienze Naturali, Geologiche e Ambientali': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'scienze naturali, geologiche e ambientali').one(),
+                'Scienze Motorie per lo Sport e la Salute': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'scienze motorie per lo sport e la salute').one(),
             }
 
             courses_to_add = [
@@ -280,9 +333,24 @@ def initialize_database():
             ]
             
             for name, year, program_obj in courses_to_add:
-                if not Course.query.filter_by(name=name, degree_program_id=program_obj.id).first():
+                # Controllo case-insensitive per gli esami
+                if not Course.query.filter(
+                    func.lower(Course.name) == name.lower(),
+                    Course.degree_program_id == program_obj.id,
+                    Course.year == year
+                ).first():
                     db.session.add(Course(name=name, year=year, degree_program=program_obj))
-            
+                else:
+                    # Se esiste una versione case-insensitive, aggiorna il nome alla versione canonica
+                    existing_course = Course.query.filter(
+                        func.lower(Course.name) == name.lower(),
+                        Course.degree_program_id == program_obj.id,
+                        Course.year == year
+                    ).first()
+                    if existing_course and existing_course.name != name:
+                        print(f"INIT_DB: Normalizzando il nome del corso da '{existing_course.name}' a '{name}' per {program_obj.name}")
+                        existing_course.name = name
+
             db.session.commit()
             print("INIT_DB: Popolamento esami SQL completato.")
         except Exception as e:
@@ -311,7 +379,8 @@ def initialize_database():
         print(f"INIT_DB: Connesso a MongoDB, database: {db_mongo.name}")
         
         users_collection = db_mongo.users
-        if users_collection.count_documents({"username": "admin"}) == 0:
+        # Controllo case-insensitive per l'utente admin
+        if users_collection.count_documents({"username": {"$regex": "admin", "$options": "i"}}) == 0:
             print("INIT_DB: Aggiungendo utente 'admin'...")
             users_collection.insert_one({"username": "admin", "email": "admin@example.com", "password_hash": generate_password_hash("password")})
             print("INIT_DB: Utente 'admin' aggiunto.")
