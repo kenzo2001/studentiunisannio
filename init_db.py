@@ -38,13 +38,11 @@ def initialize_database():
             {'name': 'Ingegneria Civile', 'department': ding_dept},
             {'name': 'Ingegneria Informatica', 'department': ding_dept},
             {'name': 'Ingegneria Biomedica', 'department': ding_dept},
-            # DEMM
-            {'name': 'Economia Aziendale', 'department': demm_dept},
+        
             # DST
             {'name': 'Scienze Biologiche', 'department': dst_dept},
             {'name': 'Biotecnologie', 'department': dst_dept},
             {'name': 'Scienze Naturali', 'department': dst_dept},
-            {'name': 'Geologia', 'department': dst_dept},
             {'name': 'Scienze Motorie per lo Sport e la Salute', 'department': dst_dept},
         ]
         for dp_data in degree_programs_to_ensure:
@@ -62,7 +60,6 @@ def initialize_database():
                 'Scienze Biologiche': DegreeProgram.query.filter_by(name='Scienze Biologiche').one(),
                 'Biotecnologie': DegreeProgram.query.filter_by(name='Biotecnologie').one(),
                 'Scienze Naturali': DegreeProgram.query.filter_by(name='Scienze Naturali').one(),
-                'Geologia': DegreeProgram.query.filter_by(name='Geologia').one(),
                 'Scienze Motorie per lo Sport e la Salute': DegreeProgram.query.filter_by(name='Scienze Motorie per lo Sport e la Salute').one(),
             }
 
@@ -101,9 +98,7 @@ def initialize_database():
                 ('CHIMICA GENERALE E INORGANICA (Scienze Naturali)', 1, programs['Scienze Naturali']), ('CHIMICA ORGANICA CON ELEMENTI DI BIOCHIMICA', 1, programs['Scienze Naturali']), ('FONDAMENTI DI BIOLOGIA', 1, programs['Scienze Naturali']), ('FONDAMENTI DI SCIENZE DELLA TERRA', 1, programs['Scienze Naturali']), ('GEOCHIMICA ED ANALISI DEI DATI AMBIENTALI', 1, programs['Scienze Naturali']), ('INGLESE (Scienze Naturali)', 1, programs['Scienze Naturali']), ('MATEMATICA E STATISTICA', 1, programs['Scienze Naturali']),
                 ('FISICA CON LABORATORIO (Scienze Naturali)', 2, programs['Scienze Naturali']), ('GEOMORFOLOGIA', 2, programs['Scienze Naturali']), ('IDROGEOLOGIA', 2, programs['Scienze Naturali']), ('MINERALOGIA', 2, programs['Scienze Naturali']), ('PALEONTOLOGIA, PALEOECOLOGIA E LABORATORIO', 2, programs['Scienze Naturali']), ('PETROGRAFIA', 2, programs['Scienze Naturali']), ('ZOOLOGIA GENERALE E SISTEMATICA', 2, programs['Scienze Naturali']), ('BOTANICA GENERALE E SISTEMATICA', 2, programs['Scienze Naturali']),
                 ('ANATOMIA COMPARATA', 3, programs['Scienze Naturali']), ('ECOLOGIA (Scienze Naturali)', 3, programs['Scienze Naturali']), ('GENETICA (Scienze Naturali)', 3, programs['Scienze Naturali']), ('GEOFISICA DELLA TERRA SOLIDA', 3, programs['Scienze Naturali']), ('SOSTENIBILITÀ AMBIENTALE E PROTEZIONE DELLA NATURA', 3, programs['Scienze Naturali']),
-                
-                # Geologia
-                ('CAMPO GEOLOGICO MULTIDISCIPLINARE SU PROGETTO AMBIENTALE', 3, programs['Geologia']), ('GEOFISICA DELLA TERRA SOLIDA (Geologia)', 3, programs['Geologia']), ('GEOLOGIA TECNICA E APPLICATA', 3, programs['Geologia']), ('RILEVAMENTO GEOLOGICO', 3, programs['Geologia']),
+            
                 
                 # Scienze Motorie
                 ('Anatomia Umana', 1, programs['Scienze Motorie per lo Sport e la Salute']), ('Biologia applicata', 1, programs['Scienze Motorie per lo Sport e la Salute']), ('Biochimica (Scienze Motorie)', 1, programs['Scienze Motorie per lo Sport e la Salute']), ('Fisica con elementi di biomeccanica', 1, programs['Scienze Motorie per lo Sport e la Salute']), ('Principi di diritto e management dello sport', 1, programs['Scienze Motorie per lo Sport e la Salute']), ('Inglese scientifico', 1, programs['Scienze Motorie per lo Sport e la Salute']), ('Teoria del movimento e tecnica dell\'attività motoria e sportiva', 1, programs['Scienze Motorie per lo Sport e la Salute']), ('Pedagogia e sociologia della comunicazione', 1, programs['Scienze Motorie per lo Sport e la Salute']),
