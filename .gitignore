@@ -1,0 +1,13 @@
+# File di configurazione dell'ambiente locale
+.env
+
+# Database locale SQLite
+unisannio_appunti.db
+instance/
+
+# Cartella dell'ambiente virtuale Python
+venv/
+__pycache__/
+
+# File di configurazione dell'editor (es. VSCode)
+.vscode/
