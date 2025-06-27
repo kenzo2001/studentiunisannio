@@ -256,11 +256,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 } catch (err) { console.error("Errore caricamento dipartimenti", err); }
             };
 
-            const loadDegreePrograms = async (departmentId) => {
+          const loadDegreePrograms = async (departmentId) => {
                 if (!departmentId) return;
                 try {
                     const response = await fetch(`${API_BASE_URL}/api/departments/${departmentId}/degree_programs`);
                     const programs = await response.json();
+                    console.log("Corsi di Laurea caricati:", programs); // Aggiungi questo
                     degreeProgramSelect.innerHTML = '<option value="">Seleziona Corso di Laurea</option>';
                     programs.forEach(p => {
                         degreeProgramSelect.innerHTML += `<option value="${p.id}">${p.name}</option>`;
@@ -268,17 +269,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     degreeProgramSelect.disabled = false;
                 } catch(err) { console.error("Errore caricamento corsi di laurea", err); }
             };
-
-             const loadCourses = async (degreeProgramId) => {
+            const loadCourses = async (degreeProgramId) => {
                 if (!degreeProgramId) return;
                  try {
                     let allCourses = [];
                     for (let year = 1; year <= 3; year++) {
                         const response = await fetch(`${API_BASE_URL}/api/degree_programs/${degreeProgramId}/courses/${year}`);
                         if (response.ok) {
-                            allCourses = allCourses.concat(await response.json());
+                            const coursesOfYear = await response.json();
+                            console.log(`Corsi per anno ${year} caricati:`, coursesOfYear); // Aggiungi questo
+                            allCourses = allCourses.concat(coursesOfYear);
                         }
                     }
+                    console.log("Tutti i corsi caricati per il corso di laurea:", allCourses); // Aggiungi questo
                     courseSelect.innerHTML = '<option value="">Seleziona Esame/Materia</option>';
                     allCourses.sort((a,b) => a.name.localeCompare(b.name)).forEach(c => {
                          courseSelect.innerHTML += `<option value="${c.id}">${c.name} (${c.year}° Anno)</option>`;
