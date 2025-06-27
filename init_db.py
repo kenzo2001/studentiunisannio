@@ -8,21 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def initialize_database():
-
-
-    print("INIT_DB: Inizio inizializzazione database.")
-
-    with app.app_context():
-        try:
-            # TEMPORANEO: Questa riga eliminerà TUTTI i dati ad ogni deploy.
-            # RIMUOVI o commenta questa riga DOPO aver completato il reset del DB.
-            db.drop_all() 
-            print("INIT_DB: Tabelle SQL esistenti eliminate.")
-            db.create_all()
-            print("INIT_DB: Struttura tabelle SQL verificata/creata.")
-        except Exception as e:
-            print(f"ERRORE INIT_DB (SQL): {e}")
-            raise
+    
     print("INIT_DB: Inizio inizializzazione database.")
 
     with app.app_context():
