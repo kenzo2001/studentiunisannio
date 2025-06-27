@@ -54,28 +54,53 @@ def initialize_database():
             {'name': 'Scienze Naturali, Geologiche e Ambientali', 'department': dst_dept},
             {'name': 'Scienze Motorie per lo Sport e la Salute', 'department': dst_dept},
         ]
-        for dp_data in degree_programs_to_ensure:
-            # Controllo case-insensitive per i corsi di laurea
-            if not DegreeProgram.query.filter(
-                func.lower(DegreeProgram.name) == dp_data['name'].lower(),
-                DegreeProgram.department_id == dp_data['department'].id
-            ).first():
-                db.session.add(DegreeProgram(name=dp_data['name'], department=dp_data['department']))
-            else:
-                # Se esiste una versione case-insensitive, aggiorna il nome alla versione canonica
-                existing_program = DegreeProgram.query.filter(
-                    func.lower(DegreeProgram.name) == dp_data['name'].lower(),
-                    DegreeProgram.department_id == dp_data['department'].id
-                ).first()
-                if existing_program and existing_program.name != dp_data['name']:
-                    print(f"INIT_DB: Normalizzando il nome del corso di laurea da '{existing_program.name}' a '{dp_data['name']}'")
-                    existing_program.name = dp_data['name']
 
-        db.session.commit()
+        # Aggiunta logica per gestire i duplicati case-insensitive nei corsi di laurea
+        for dp_data in degree_programs_to_ensure:
+            canonical_name = dp_data['name']
+            department_id = dp_data['department'].id
+            
+            # Trova tutte le voci esistenti che corrispondono in modo case-insensitive per questo nome e dipartimento
+            existing_matches = DegreeProgram.query.filter(
+                func.lower(DegreeProgram.name) == canonical_name.lower(),
+                DegreeProgram.department_id == department_id
+            ).all()
+
+            if len(existing_matches) > 1:
+                print(f"INIT_DB: Trovati {len(existing_matches)} duplicati per '{canonical_name}' (dipartimento {department_id}). Mantenendo la versione canonica e rimuovendo gli altri.")
+                # Cerca l'entrata che corrisponde esattamente al nome canonico o la prima se nessuna corrisponde esattamente
+                canonical_entry = next((dp for dp in existing_matches if dp.name == canonical_name), None)
+                
+                # Se non esiste una versione esattamente canonica, usa la prima trovata e normalizzala
+                if not canonical_entry:
+                    canonical_entry = existing_matches[0]
+                    canonical_entry.name = canonical_name # Normalizza il nome
+                
+                # Elimina tutti i duplicati, eccetto l'entrata canonica selezionata
+                for dp in existing_matches:
+                    if dp.id != canonical_entry.id:
+                        db.session.delete(dp)
+                
+                # Assicurati che l'entrata canonica sia aggiunta/aggiornata nel caso fosse stata eliminata o il nome non fosse corretto
+                db.session.add(canonical_entry) # re-add if it was deleted or detached
+
+            elif len(existing_matches) == 1:
+                # Se ne esiste solo una, assicurati che il suo nome sia canonico
+                existing_program = existing_matches[0]
+                if existing_program.name != canonical_name:
+                    print(f"INIT_DB: Normalizzando il nome del corso di laurea da '{existing_program.name}' a '{canonical_name}'")
+                    existing_program.name = canonical_name
+            else: # len(existing_matches) == 0
+                # Nessuna voce esistente, aggiungi quella canonica
+                db.session.add(DegreeProgram(name=canonical_name, department=dp_data['department']))
+        
+        db.session.commit() # Commit delle modifiche dopo aver assicurato i programmi canonici
+
 
         # --- 3. Popolamento Esami ---
         try:
             # Recupera i programmi di laurea con un controllo case-insensitive per sicurezza
+            # Ora queste chiamate .one() dovrebbero funzionare perché i duplicati sono stati gestiti
             programs = {
                 'Ingegneria Energetica': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'ingegneria energetica').one(),
                 'Ingegneria Civile': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'ingegneria civile').one(),

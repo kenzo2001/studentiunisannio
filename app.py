@@ -129,6 +129,14 @@ def unauthorized():
         return jsonify({"error": "Accesso non autorizzato. Effettua il login."}), 401
     return redirect(url_for('serve_login_page'))
 
+# --- Aggiunta dell'header Cross-Origin-Opener-Policy ---
+@app.after_request
+def add_coop_header(response):
+    # Imposta l'header COOP per consentire l'interazione con i popup cross-origin (come Google Sign-In)
+    # Questo header è importante per risolvere gli errori 'Cross-Origin-Opener-Policy policy would block...'
+    response.headers['Cross-Origin-Opener-Policy'] = 'same-origin-allow-popups'
+    return response
+
 # --- ROTTE API ---
 
 @app.route('/api/google-login', methods=['POST'])
