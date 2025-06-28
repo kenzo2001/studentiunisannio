@@ -1,6 +1,6 @@
 # File di configurazione dell'ambiente locale
 .env
-
+__pycache__
 # Database locale SQLite
 unisannio_appunti.db
 instance/
@@ -11,3 +11,5 @@ __pycache__/
 
 # File di configurazione dell'editor (es. VSCode)
 .vscode/
+
+__pycache__\app.cpython-313.pyc
