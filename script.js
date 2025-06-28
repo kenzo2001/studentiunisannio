@@ -1,4 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
+
+
     const currentPage = window.location.pathname.split('/').pop();
 
     const isLocal = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
@@ -370,6 +372,152 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     }
+
+
+    // Sostituisci le vecchie 'loadAdminNotes' e 'handleNoteAction' con queste
+
+const loadAdminNotes = async () => {
+    if (!notesListContainer) return;
+    notesListContainer.innerHTML = `<p class="no-pending-notes">Caricamento appunti...</p>`;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/admin/all_notes`, {
+            credentials: 'include'
+        });
+
+        if (response.status === 403) {
+             notesListContainer.innerHTML = `<p class="no-pending-notes">Accesso negato. Devi essere un amministratore per visualizzare questa pagina.</p>`;
+             return;
+        }
+        if (response.status === 401) {
+             notesListContainer.innerHTML = `<p class="no-pending-notes">Accesso non autorizzato. Effettua il <a href="login.html">login</a> come amministratore.</p>`;
+             return;
+        }
+
+        const notes = await response.json();
+
+        if (!notes || notes.length === 0) {
+            notesListContainer.innerHTML = `<p class="no-pending-notes">Nessun appunto trovato nel sistema.</p>`;
+            return;
+        }
+        
+        const sortedNotes = notes.sort((a, b) => {
+            if (a.status === 'pending' && b.status !== 'pending') return -1;
+            if (a.status !== 'pending' && b.status === 'pending') return 1;
+            return new Date(b.upload_date) - new Date(a.upload_date);
+        });
+
+        let notesHtml = '<ul class="note-admin-list">';
+        sortedNotes.forEach(note => {
+            const statusClass = `status-${note.status}`;
+            notesHtml += `
+                <li class="note-admin-item" id="note-item-${note.id}">
+                    <h3>${note.title}</h3>
+                    <p><strong>Caricato da:</strong> ${note.uploader_name || 'Anonimo'}</p>
+                    <p><strong>Corso:</strong> ${note.course_name} (${note.course_year}° Anno)</p>
+                    <p><strong>Descrizione:</strong> ${note.description || 'N/A'}</p>
+                    <p><strong>Data:</strong> ${new Date(note.upload_date).toLocaleString()}</p>
+                    <p><strong>Stato:</strong> <span class="${statusClass}">${note.status.toUpperCase()}</span></p>
+                    <div class="note-actions">
+                        <button class="btn-download" data-note-id="${note.id}">Scarica</button>
+                        ${note.status !== 'approved' ? `<button class="btn-approve" data-note-id="${note.id}">Approva</button>` : ''}
+                        ${note.status !== 'rejected' ? `<button class="btn-reject" data-note-id="${note.id}">Rifiuta</button>` : ''}
+                        <button class="btn-delete" data-note-id="${note.id}">Elimina</button>
+                    </div>
+                </li>
+            `;
+        });
+        notesHtml += '</ul>';
+        notesListContainer.innerHTML = notesHtml;
+
+    } catch (error) {
+        console.error('Errore nel caricamento degli appunti per admin:', error);
+        notesListContainer.innerHTML = `<p class="no-pending-notes">Si è verificato un errore durante il caricamento degli appunti.</p>`;
+    }
+};
+
+const handleNoteAction = async (noteId, action) => {
+    // Aggiungi 'download' all'elenco delle azioni
+    const urlMap = {
+        approve: { method: 'POST', path: `/api/admin/notes/${noteId}/approve` },
+        reject: { method: 'POST', path: `/api/admin/notes/${noteId}/reject` },
+        delete: { method: 'DELETE', path: `/api/admin/notes/${noteId}/delete` },
+        download: { method: 'GET', path: `/api/notes/${noteId}/download` }
+    };
+
+    if (!urlMap[action]) return;
+    
+    const { method, path } = urlMap[action];
+    
+    if (action === 'delete' && !confirm('Sei sicuro di voler eliminare questo appunto? L\'azione è irreversibile.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}${path}`, { 
+            method: method,
+            credentials: 'include'
+        });
+        const result = await response.json();
+
+        if (response.ok) {
+            if (action === 'download') {
+                if (result.download_url) {
+                    window.open(result.download_url, '_blank'); // Apri il link in una nuova scheda
+                } else {
+                    alert('Errore: URL per il download non ricevuto.');
+                }
+            } else {
+                alert(result.message);
+                loadAdminNotes(); // Ricarica la lista per mostrare le modifiche
+            }
+        } else {
+            alert(`Errore: ${result.error}`);
+        }
+    } catch (error) {
+        console.error(`Errore durante l'azione '${action}':`, error);
+        alert('Si è verificato un errore di rete.');
+    }
+};
+
+// Modifica il listener per includere il download
+notesListContainer.addEventListener('click', (event) => {
+    const target = event.target;
+    const noteId = target.dataset.noteId;
+    if (!noteId) return;
+
+    if (target.classList.contains('btn-approve')) {
+        handleNoteAction(noteId, 'approve');
+    } else if (target.classList.contains('btn-reject')) {
+        handleNoteAction(noteId, 'reject');
+    } else if (target.classList.contains('btn-delete')) {
+        handleNoteAction(noteId, 'delete');
+    } else if (target.classList.contains('btn-download')) { // Aggiungi questo
+        handleNoteAction(noteId, 'download');
+    }
+});
+const logoutButton = document.getElementById('nav-logout');
+    if (logoutButton) {
+        logoutButton.addEventListener('click', async function(event) {
+            event.preventDefault(); // Previene il comportamento di default del link
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/logout`, {
+                    method: 'POST',
+                    credentials: 'include' // Invia i cookie di sessione
+                });
+                if (response.ok) {
+                    alert('Logout avvenuto con successo!');
+                    window.location.href = 'login.html'; // Reindirizza alla pagina di login
+                } else {
+                    alert('Errore durante il logout.');
+                }
+            } catch (error) {
+                console.error('Errore di rete nel logout:', error);
+                alert('Errore di rete, impossibile effettuare il logout.');
+            }
+        });
+    }
+
     
     function onSignIn(googleUser) {
         const messageDiv = document.getElementById('login-message') || document.getElementById('register-message');
@@ -428,4 +576,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Rendi la funzione di login con Google globalmente accessibile
     window.onSignIn = onSignIn;
-});
+}
+
+
+
+
+
+
+
+
+
+
+
+);
