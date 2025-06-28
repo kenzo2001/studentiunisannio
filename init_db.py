@@ -9,9 +9,10 @@ load_dotenv()
 
 def initialize_database():
     print("INIT_DB: Inizio inizializzazione database.")
-    db.drop_all(),
+    
     with app.app_context():
         try:
+            db.drop_all(),
             db.create_all()
             print("INIT_DB: Struttura tabelle SQL verificata/creata.")
         except Exception as e:
