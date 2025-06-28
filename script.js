@@ -1,17 +1,15 @@
 document.addEventListener('DOMContentLoaded', function() {
-
-
     const currentPage = window.location.pathname.split('/').pop();
 
     const isLocal = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
     const API_BASE_URL = isLocal ? 'http://127.0.0.1:5000' : 'https://studentiunisannio.it';
-    
+
     const degreeProgramIds = {
         'ing_energetica': 1, 'ing_civile': 2, 'ing_informatica': 3, 'ing_biomedica': 4,
         'economia_aziendale': 5,'giurisprudenza': 6, 'statistica': 7, 'economia_bancaria': 8,
-           'scienze_biologiche': 9, 'biotecnologie': 10, 'scienze_naturali': 11, 'scienze_motorie': 12,
+        'scienze_biologiche': 9, 'biotecnologie': 10, 'scienze_naturali': 11, 'scienze_motorie': 12,
     };
-    
+
     const tabInfoMapping = {
         'primoAnnoEnergetica': { degree_name: 'ing_energetica', year: 1 },'secondoAnnoEnergetica': { degree_name: 'ing_energetica', year: 2 },'terzoAnnoEnergetica': { degree_name: 'ing_energetica', year: 3 },
         'primoAnnoCivile': { degree_name: 'ing_civile', year: 1 },'secondoAnnoCivile': { degree_name: 'ing_civile', year: 2 },'terzoAnnoCivile': { degree_name: 'ing_civile', year: 3 },
@@ -26,10 +24,6 @@ document.addEventListener('DOMContentLoaded', function() {
         'primoAnnoBiotecnologie': { degree_name: 'biotecnologie', year: 1 }, 'secondoAnnoBiotecnologie': { degree_name: 'biotecnologie', year: 2 }, 'terzoAnnoBiotecnologie': { degree_name: 'biotecnologie', year: 3 },
         'primoAnnoNaturali': { degree_name: 'scienze_naturali', year: 1 }, 'secondoAnnoNaturali': { degree_name: 'scienze_naturali', year: 2 }, 'terzoAnnoNaturali': { degree_name: 'scienze_naturali', year: 3 },
         'primoAnnoMotorie': { degree_name: 'scienze_motorie', year: 1 }, 'secondoAnnoMotorie': { degree_name: 'scienze_motorie', year: 2 }, 'terzoAnnoMotorie': { degree_name: 'scienze_motorie', year: 3 },
-        
-    
-    
-    
     };
 
     function activateMainTabAndHeader() {
@@ -52,13 +46,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const isIngPage = currentPage.startsWith('ing_');
         const isDstPage = ['scienze_biologiche.html', 'biotecnologie.html', 'scienze_naturali.html', 'scienze_motorie.html'].includes(currentPage);
         const isDemmPage = ['economia_aziendale.html', 'economia_bancaria.html', 'statistica.html', 'giurisprudenza.html'].includes(currentPage);
-        
+
         let theme = '';
         let activeNavLinkId = '';
 
         if (currentPage === '' || currentPage === 'index.html' || currentPage === 'upload_note.html') {
-             theme = 'home';
-             activeNavLinkId = 'nav-home';
+            theme = 'home';
+            activeNavLinkId = 'nav-home';
         } else if (isIngPage || currentPage === 'ding.html') {
             theme = 'ding';
             activeNavLinkId = 'nav-ding';
@@ -73,7 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
             theme = 'ding';
             activeNavLinkId = 'nav-ding';
         }
-        
+
         // Applica il tema
         header.classList.add(`header-${theme}`);
         navbar.classList.add(`navbar-${theme}`);
@@ -85,53 +79,23 @@ document.addEventListener('DOMContentLoaded', function() {
             activeLink.classList.add(activeClass);
         }
     }
-    
+
     async function updateUserStatusNavbar() {
         const userStatusElement = document.getElementById('user-status');
         const loginLink = document.getElementById('nav-login');
         const registerLink = document.getElementById('nav-register');
         const logoutLink = document.getElementById('nav-logout');
         const uploadNoteLink = document.getElementById('nav-upload');
+        const adminDashboardLink = document.getElementById('nav-admin'); // Dichiarazione corretta
 
-    // Nascondi tutti i link di stato utente per default
-    if (userStatusElement) userStatusElement.style.display = 'none';
-    if (loginLink) loginLink.style.display = 'none';
-    if (registerLink) registerLink.style.display = 'none';
-    if (logoutLink) logoutLink.style.display = 'none';
-    if (uploadNoteLink) uploadNoteLink.style.display = 'none';
-    if (adminDashboardLink) adminDashboardLink.style.display = 'none'; // Nascondi per default
+        // Nascondi tutti i link di stato utente per default
         if (userStatusElement) userStatusElement.style.display = 'none';
         if (loginLink) loginLink.style.display = 'none';
         if (registerLink) registerLink.style.display = 'none';
         if (logoutLink) logoutLink.style.display = 'none';
         if (uploadNoteLink) uploadNoteLink.style.display = 'none';
+        if (adminDashboardLink) adminDashboardLink.style.display = 'none'; // Nascondi per default
 
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/status`);
-        const data = await response.json();
-        if (data.logged_in) {
-            if (userStatusElement) {
-                userStatusElement.textContent = `Benvenuto, ${data.user.username}!`;
-                userStatusElement.style.display = 'inline-block';
-            }
-            if (logoutLink) logoutLink.style.display = 'inline-block';
-            if (uploadNoteLink) uploadNoteLink.style.display = 'inline-block';
-
-            // Mostra il link della dashboard admin se l'utente è un amministratore
-            if (data.user.role === 'admin') {
-                if (adminDashboardLink) adminDashboardLink.style.display = 'inline-block';
-            }
-
-        } else {
-            if (loginLink) loginLink.style.display = 'inline-block';
-            if (registerLink) registerLink.style.display = 'inline-block';
-        }
-    } catch (error) {
-        console.error('Errore nel controllo stato login:', error);
-        if (loginLink) loginLink.style.display = 'inline-block';
-        if (registerLink) registerLink.style.display = 'inline-block';
-    }
-}
         try {
             const response = await fetch(`${API_BASE_URL}/api/status`);
             const data = await response.json();
@@ -142,6 +106,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 if (logoutLink) logoutLink.style.display = 'inline-block';
                 if (uploadNoteLink) uploadNoteLink.style.display = 'inline-block';
+
+                // Mostra il link della dashboard admin se l'utente è un amministratore
+                if (data.user.role === 'admin') {
+                    if (adminDashboardLink) adminDashboardLink.style.display = 'inline-block';
+                }
+
             } else {
                 if (loginLink) loginLink.style.display = 'inline-block';
                 if (registerLink) registerLink.style.display = 'inline-block';
@@ -209,7 +179,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function loadCoursesForYear(degreeProgramId, year, container, degreeName) {
         const displayName = degreeName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         container.innerHTML = `<h3 style="color: black;">Caricamento corsi ${year}° Anno per ${displayName}...</h3>`;
-        
+
         fetch(`${API_BASE_URL}/api/degree_programs/${degreeProgramId}/courses/${year}`)
             .then(response => {
                 if (response.status === 404) return [];
@@ -282,7 +252,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
-    
+
     function setupAuthAndUploadPages() {
         if (currentPage === 'upload_note.html') {
             const uploadForm = document.getElementById('uploadNoteForm');
@@ -315,9 +285,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 } catch(err) { console.error("Errore caricamento corsi di laurea", err); }
             };
 
-             const loadCourses = async (degreeProgramId) => {
+            const loadCourses = async (degreeProgramId) => {
                 if (!degreeProgramId) return;
-                 try {
+                try {
                     let allCourses = [];
                     for (let year = 1; year <= 5; year++) { // Modificato a 5 per includere giurisprudenza
                         const response = await fetch(`${API_BASE_URL}/api/degree_programs/${degreeProgramId}/courses/${year}`);
@@ -327,15 +297,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     courseSelect.innerHTML = '<option value="">Seleziona Esame/Materia</option>';
                     allCourses.sort((a,b) => a.name.localeCompare(b.name)).forEach(c => {
-                         courseSelect.innerHTML += `<option value="${c.id}">${c.name} (${c.year}° Anno)</option>`;
+                        courseSelect.innerHTML += `<option value="${c.id}">${c.name} (${c.year}° Anno)</option>`;
                     });
                     courseSelect.disabled = false;
-                 } catch(err) { console.error("Errore caricamento esami", err); }
+                } catch(err) { console.error("Errore caricamento esami", err); }
             };
 
             departmentSelect.addEventListener('change', (e) => loadDegreePrograms(e.target.value));
             degreeProgramSelect.addEventListener('change', (e) => loadCourses(e.target.value));
-            
+
             uploadForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 messageDiv.textContent = 'Caricamento in corso...';
@@ -352,8 +322,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         messageDiv.className = 'error';
                     }
                 } catch (err) {
-                     messageDiv.textContent = `Errore di rete: ${err.message}`;
-                     messageDiv.className = 'error';
+                    messageDiv.textContent = `Errore di rete: ${err.message}`;
+                    messageDiv.className = 'error';
                 }
             });
 
@@ -363,13 +333,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (currentPage === 'login.html' || currentPage === 'register.html') {
             const form = document.getElementById('loginForm') || document.getElementById('registerForm');
             const messageDiv = document.getElementById('login-message') || document.getElementById('register-message');
-            
+
             form.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 const isRegister = form.id === 'registerForm';
                 const endpoint = isRegister ? '/api/register' : '/api/login';
                 messageDiv.textContent = isRegister ? 'Registrazione in corso...' : 'Accesso in corso...';
-                
+
                 const formData = new FormData(form);
                 const data = Object.fromEntries(formData.entries());
 
@@ -404,141 +374,144 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         }
-    }
+        // Logic for admin_dashboard.html goes here
+        if (currentPage === 'admin_dashboard.html') {
+            const notesListContainer = document.getElementById('pending-notes-list'); // Define notesListContainer here
 
+            const loadAdminNotes = async () => {
+                if (!notesListContainer) return; // Defensive check
+                notesListContainer.innerHTML = `<p class="no-pending-notes">Caricamento appunti...</p>`;
 
-    // Sostituisci le vecchie 'loadAdminNotes' e 'handleNoteAction' con queste
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/admin/all_notes`, {
+                        credentials: 'include'
+                    });
 
-const loadAdminNotes = async () => {
-    if (!notesListContainer) return;
-    notesListContainer.innerHTML = `<p class="no-pending-notes">Caricamento appunti...</p>`;
+                    if (response.status === 403) {
+                        notesListContainer.innerHTML = `<p class="no-pending-notes">Accesso negato. Devi essere un amministratore per visualizzare questa pagina.</p>`;
+                        return;
+                    }
+                    if (response.status === 401) {
+                        notesListContainer.innerHTML = `<p class="no-pending-notes">Accesso non autorizzato. Effettua il <a href="login.html">login</a> come amministratore.</p>`;
+                        return;
+                    }
 
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/admin/all_notes`, {
-            credentials: 'include'
-        });
+                    const notes = await response.json();
 
-        if (response.status === 403) {
-             notesListContainer.innerHTML = `<p class="no-pending-notes">Accesso negato. Devi essere un amministratore per visualizzare questa pagina.</p>`;
-             return;
-        }
-        if (response.status === 401) {
-             notesListContainer.innerHTML = `<p class="no-pending-notes">Accesso non autorizzato. Effettua il <a href="login.html">login</a> come amministratore.</p>`;
-             return;
-        }
+                    if (!notes || notes.length === 0) {
+                        notesListContainer.innerHTML = `<p class="no-pending-notes">Nessun appunto trovato nel sistema.</p>`;
+                        return;
+                    }
 
-        const notes = await response.json();
+                    const sortedNotes = notes.sort((a, b) => {
+                        if (a.status === 'pending' && b.status !== 'pending') return -1;
+                        if (a.status !== 'pending' && b.status === 'pending') return 1;
+                        return new Date(b.upload_date) - new Date(a.upload_date);
+                    });
 
-        if (!notes || notes.length === 0) {
-            notesListContainer.innerHTML = `<p class="no-pending-notes">Nessun appunto trovato nel sistema.</p>`;
-            return;
-        }
-        
-        const sortedNotes = notes.sort((a, b) => {
-            if (a.status === 'pending' && b.status !== 'pending') return -1;
-            if (a.status !== 'pending' && b.status === 'pending') return 1;
-            return new Date(b.upload_date) - new Date(a.upload_date);
-        });
+                    let notesHtml = '<ul class="note-admin-list">';
+                    sortedNotes.forEach(note => {
+                        const statusClass = `status-${note.status}`;
+                        notesHtml += `
+                            <li class="note-admin-item" id="note-item-${note.id}">
+                                <h3>${note.title}</h3>
+                                <p><strong>Caricato da:</strong> ${note.uploader_name || 'Anonimo'}</p>
+                                <p><strong>Corso:</strong> ${note.course_name} (${note.course_year}° Anno)</p>
+                                <p><strong>Descrizione:</strong> ${note.description || 'N/A'}</p>
+                                <p><strong>Data:</strong> ${new Date(note.upload_date).toLocaleString()}</p>
+                                <p><strong>Stato:</strong> <span class="${statusClass}">${note.status.toUpperCase()}</span></p>
+                                <div class="note-actions">
+                                    <button class="btn-download" data-note-id="${note.id}">Scarica</button>
+                                    ${note.status !== 'approved' ? `<button class="btn-approve" data-note-id="${note.id}">Approva</button>` : ''}
+                                    ${note.status !== 'rejected' ? `<button class="btn-reject" data-note-id="${note.id}">Rifiuta</button>` : ''}
+                                    <button class="btn-delete" data-note-id="${note.id}">Elimina</button>
+                                </div>
+                            </li>
+                        `;
+                    });
+                    notesHtml += '</ul>';
+                    notesListContainer.innerHTML = notesHtml;
 
-        let notesHtml = '<ul class="note-admin-list">';
-        sortedNotes.forEach(note => {
-            const statusClass = `status-${note.status}`;
-            notesHtml += `
-                <li class="note-admin-item" id="note-item-${note.id}">
-                    <h3>${note.title}</h3>
-                    <p><strong>Caricato da:</strong> ${note.uploader_name || 'Anonimo'}</p>
-                    <p><strong>Corso:</strong> ${note.course_name} (${note.course_year}° Anno)</p>
-                    <p><strong>Descrizione:</strong> ${note.description || 'N/A'}</p>
-                    <p><strong>Data:</strong> ${new Date(note.upload_date).toLocaleString()}</p>
-                    <p><strong>Stato:</strong> <span class="${statusClass}">${note.status.toUpperCase()}</span></p>
-                    <div class="note-actions">
-                        <button class="btn-download" data-note-id="${note.id}">Scarica</button>
-                        ${note.status !== 'approved' ? `<button class="btn-approve" data-note-id="${note.id}">Approva</button>` : ''}
-                        ${note.status !== 'rejected' ? `<button class="btn-reject" data-note-id="${note.id}">Rifiuta</button>` : ''}
-                        <button class="btn-delete" data-note-id="${note.id}">Elimina</button>
-                    </div>
-                </li>
-            `;
-        });
-        notesHtml += '</ul>';
-        notesListContainer.innerHTML = notesHtml;
-
-    } catch (error) {
-        console.error('Errore nel caricamento degli appunti per admin:', error);
-        notesListContainer.innerHTML = `<p class="no-pending-notes">Si è verificato un errore durante il caricamento degli appunti.</p>`;
-    }
-};
-
-const handleNoteAction = async (noteId, action) => {
-    // Aggiungi 'download' all'elenco delle azioni
-    const urlMap = {
-        approve: { method: 'POST', path: `/api/admin/notes/${noteId}/approve` },
-        reject: { method: 'POST', path: `/api/admin/notes/${noteId}/reject` },
-        delete: { method: 'DELETE', path: `/api/admin/notes/${noteId}/delete` },
-        download: { method: 'GET', path: `/api/notes/${noteId}/download` }
-    };
-
-    if (!urlMap[action]) return;
-    
-    const { method, path } = urlMap[action];
-    
-    if (action === 'delete' && !confirm('Sei sicuro di voler eliminare questo appunto? L\'azione è irreversibile.')) {
-        return;
-    }
-
-    try {
-        const response = await fetch(`${API_BASE_URL}${path}`, { 
-            method: method,
-            credentials: 'include'
-        });
-        const result = await response.json();
-
-        if (response.ok) {
-            if (action === 'download') {
-                if (result.download_url) {
-                    window.open(result.download_url, '_blank'); // Apri il link in una nuova scheda
-                } else {
-                    alert('Errore: URL per il download non ricevuto.');
+                } catch (error) {
+                    console.error('Errore nel caricamento degli appunti per admin:', error);
+                    notesListContainer.innerHTML = `<p class="no-pending-notes">Si è verificato un errore durante il caricamento degli appunti.</p>`;
                 }
-            } else {
-                alert(result.message);
-                loadAdminNotes(); // Ricarica la lista per mostrare le modifiche
+            };
+
+            const handleNoteAction = async (noteId, action) => {
+                const urlMap = {
+                    approve: { method: 'POST', path: `/api/admin/notes/${noteId}/approve` },
+                    reject: { method: 'POST', path: `/api/admin/notes/${noteId}/reject` },
+                    delete: { method: 'DELETE', path: `/api/admin/notes/${noteId}/delete` },
+                    download: { method: 'GET', path: `/api/notes/${noteId}/download` }
+                };
+
+                if (!urlMap[action]) return;
+
+                const { method, path } = urlMap[action];
+
+                if (action === 'delete' && !confirm('Sei sicuro di voler eliminare questo appunto? L\'azione è irreversibile.')) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}${path}`, {
+                        method: method,
+                        credentials: 'include'
+                    });
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        if (action === 'download') {
+                            if (result.download_url) {
+                                window.open(result.download_url, '_blank');
+                            } else {
+                                alert('Errore: URL per il download non ricevuto.');
+                            }
+                        } else {
+                            alert(result.message);
+                            loadAdminNotes(); // Ricarica la lista per mostrare le modifiche
+                        }
+                    } else {
+                        alert(`Errore: ${result.error}`);
+                    }
+                } catch (error) {
+                    console.error(`Errore durante l'azione '${action}':`, error);
+                    alert('Si è verificato un errore di rete.');
+                }
+            };
+
+            // Modifica il listener per includere il download
+            if (notesListContainer) { // Ensure notesListContainer exists before adding listener
+                notesListContainer.addEventListener('click', (event) => {
+                    const target = event.target;
+                    const noteId = target.dataset.noteId;
+                    if (!noteId) return;
+
+                    if (target.classList.contains('btn-approve')) {
+                        handleNoteAction(noteId, 'approve');
+                    } else if (target.classList.contains('btn-reject')) {
+                        handleNoteAction(noteId, 'reject');
+                    } else if (target.classList.contains('btn-delete')) {
+                        handleNoteAction(noteId, 'delete');
+                    } else if (target.classList.contains('btn-download')) {
+                        handleNoteAction(noteId, 'download');
+                    }
+                });
             }
-        } else {
-            alert(`Errore: ${result.error}`);
+            loadAdminNotes(); // Load admin notes when the dashboard page is loaded.
         }
-    } catch (error) {
-        console.error(`Errore durante l'azione '${action}':`, error);
-        alert('Si è verificato un errore di rete.');
-    }
-};
+    } // Fine della funzione setupAuthAndUploadPages
 
-// Modifica il listener per includere il download
-notesListContainer.addEventListener('click', (event) => {
-    const target = event.target;
-    const noteId = target.dataset.noteId;
-    if (!noteId) return;
-
-    if (target.classList.contains('btn-approve')) {
-        handleNoteAction(noteId, 'approve');
-    } else if (target.classList.contains('btn-reject')) {
-        handleNoteAction(noteId, 'reject');
-    } else if (target.classList.contains('btn-delete')) {
-        handleNoteAction(noteId, 'delete');
-    } else if (target.classList.contains('btn-download')) { // Aggiungi questo
-        handleNoteAction(noteId, 'download');
-    }
-});
-    
     function onSignIn(googleUser) {
         const messageDiv = document.getElementById('login-message') || document.getElementById('register-message');
         if (messageDiv) {
             messageDiv.textContent = 'Verifica in corso...';
             messageDiv.className = 'auth-message';
         }
-    
+
         const id_token = googleUser.credential;
-      
+
         fetch(`${API_BASE_URL}/api/google-login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -552,7 +525,7 @@ notesListContainer.addEventListener('click', (event) => {
             }
         })
         .catch(error => {
-            if (messageDiv) {
+                if (messageDiv) {
                 messageDiv.textContent = `Errore: ${error.message}`;
                 messageDiv.className = 'auth-message error';
             }
@@ -561,10 +534,9 @@ notesListContainer.addEventListener('click', (event) => {
     }
 
     // --- ESECUZIONE ALL'AVVIO ---
-    
     activateMainTabAndHeader();
     updateUserStatusNavbar();
-    logoutLink()
+
     if (document.getElementById('logoutLink')) {
         document.getElementById('logoutLink').addEventListener('click', async function(e) {
             e.preventDefault();
@@ -573,28 +545,18 @@ notesListContainer.addEventListener('click', (event) => {
         });
     }
 
-    const isCoursePage = currentPage.startsWith('ing_') || 
-                         ['scienze_biologiche.html', 'biotecnologie.html', 'scienze_naturali.html', 'scienze_motorie.html', 
+    const isCoursePage = currentPage.startsWith('ing_') ||
+                         ['scienze_biologiche.html', 'biotecnologie.html', 'scienze_naturali.html', 'scienze_motorie.html',
                           'economia_aziendale.html', 'economia_bancaria.html', 'statistica.html', 'giurisprudenza.html'].includes(currentPage);
-    
+
     if (isCoursePage && document.querySelector('.year-tabs button')) {
         document.querySelector('.year-tabs button').click();
     }
-    
-    if (['upload_note.html', 'login.html', 'register.html'].includes(currentPage)) {
+
+    if (['upload_note.html', 'login.html', 'register.html', 'admin_dashboard.html'].includes(currentPage)) {
         setupAuthAndUploadPages();
     }
 
     // Rendi la funzione di login con Google globalmente accessibile
     window.onSignIn = onSignIn;
-}
-
-
-
-
-
-
-
-
-
-);
+});
