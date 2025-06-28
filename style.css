@@ -290,3 +290,7 @@ div#navbar-user-area > span#user-status:empty { display: none !important; }
         transform: scale(1);
     }
 }
+/* Aggiungi alla fine di style.css */
+#nav-admin {
+    display: none;
+}
