@@ -329,15 +329,15 @@ def admin_required(f):
             return redirect(url_for('serve_login_page'))
         if current_user.role != 'admin':
             # Se autenticato ma non admin, nega l'accesso con un messaggio
-            # Potresti anche reindirizzare a una home page con un flash message
             return "Accesso negato: Richiede ruolo di amministratore.", 403
         return f(*args, **kwargs)
     return decorated_function
 
 # ... (altre rotte API) ...
 
-@app.route('/admin_dashboard.html') # NUOVA ROTTA
-@admin_required # Applica il decoratore per proteggere la pagina
+
+@app.route('/admin_dashboard.html') # Assicurati che questa riga sia PRESENTE
+@admin_required                      # E che anche questa riga sia PRESENTE
 def serve_admin_dashboard_page():
     return send_from_directory('.', 'admin_dashboard.html')
 
@@ -429,10 +429,6 @@ def serve_home():
 def serve_login_page():
     return send_from_directory('.', 'login.html')
 
-
-@app.route('/admin_dashboard.html') # NUOVA ROTTA
-def serve_admin_dashboard_page():
-    return send_from_directory('.', 'admin_dashboard.html')
 
 
 @app.route('/<path:filename>')
