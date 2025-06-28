@@ -321,14 +321,25 @@ def download_note(note_id):
 
 # --- NUOVI ENDPOINT PER ADMIN ---
 
-# Decoratore per richiedere il ruolo di amministratore
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or current_user.role != 'admin':
-            return jsonify({"error": "Accesso negato: Richiede ruolo di amministratore."}), 403
+        if not current_user.is_authenticated:
+            # Se non autenticato, reindirizza alla pagina di login
+            return redirect(url_for('serve_login_page'))
+        if current_user.role != 'admin':
+            # Se autenticato ma non admin, nega l'accesso con un messaggio
+            # Potresti anche reindirizzare a una home page con un flash message
+            return "Accesso negato: Richiede ruolo di amministratore.", 403
         return f(*args, **kwargs)
     return decorated_function
+
+# ... (altre rotte API) ...
+
+@app.route('/admin_dashboard.html') # NUOVA ROTTA
+@admin_required # Applica il decoratore per proteggere la pagina
+def serve_admin_dashboard_page():
+    return send_from_directory('.', 'admin_dashboard.html')
 
 # Endpoint per visualizzare appunti in attesa di approvazione
 # NUOVO ENDPOINT: Ottiene TUTTI gli appunti per la gestione amministrativa
