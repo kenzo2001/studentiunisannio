@@ -496,27 +496,6 @@ notesListContainer.addEventListener('click', (event) => {
         handleNoteAction(noteId, 'download');
     }
 });
-const logoutButton = document.getElementById('nav-logout');
-    if (logoutButton) {
-        logoutButton.addEventListener('click', async function(event) {
-            event.preventDefault(); // Previene il comportamento di default del link
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/logout`, {
-                    method: 'POST',
-                    credentials: 'include' // Invia i cookie di sessione
-                });
-                if (response.ok) {
-                    alert('Logout avvenuto con successo!');
-                    window.location.href = 'login.html'; // Reindirizza alla pagina di login
-                } else {
-                    alert('Errore durante il logout.');
-                }
-            } catch (error) {
-                console.error('Errore di rete nel logout:', error);
-                alert('Errore di rete, impossibile effettuare il logout.');
-            }
-        });
-    }
 
     
     function onSignIn(googleUser) {
