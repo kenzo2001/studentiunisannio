@@ -198,15 +198,34 @@ def register():
     return jsonify({"message": "Registrazione avvenuta con successo!"}), 201
 
 @app.route('/api/login', methods=['POST'])
+@app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json()
-    username = data.get('username')
+    # Il frontend invia 'username', che può contenere un username o un'email
+    login_identifier = data.get('username')
     password = data.get('password')
-    user_data = mongo.db.users.find_one({"username": username})
-    if user_data and check_password_hash(user_data['password_hash'], password):
+
+    if not login_identifier or not password:
+        return jsonify({"error": "Username/email e password sono richiesti."}), 400
+
+    # Cerca l'utente per username O per email
+    user_data = mongo.db.users.find_one({
+        "$or": [
+            {"username": login_identifier},
+            {"email": login_identifier}
+        ]
+    })
+
+    # Controlla la password e che l'utente non sia un utente solo-Google senza password
+    if user_data and 'password_hash' in user_data and check_password_hash(user_data['password_hash'], password):
+        # Escludi gli utenti registrati con Google che non hanno una password manuale
+        if user_data.get('source') == 'google' and not check_password_hash(user_data['password_hash'], password):
+             return jsonify({"error": "Questo account è registrato con Google. Usa il login di Google."}), 401
+        
         user_obj = User(user_data)
         login_user(user_obj)
         return jsonify({"message": "Login avvenuto con successo!", "user": user_obj.to_dict()}), 200
+        
     return jsonify({"error": "Credenziali non valide"}), 401
 
 @app.route('/api/logout', methods=['POST'])

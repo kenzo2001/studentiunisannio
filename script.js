@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const isLocal = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
     const API_BASE_URL = isLocal ? 'http://127.0.0.1:5000' : 'https://studentiunisannio.it';
-   
+
     const degreeProgramIds = {
         'ing_energetica': 1, 'ing_civile': 2, 'ing_informatica': 3, 'ing_biomedica': 4,
         'economia_aziendale': 5, 'giurisprudenza': 6, 'statistica': 7, 'economia_bancaria': 8,
@@ -171,7 +171,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     window.openYearTab = function(evt, tabName) {
-        // ... (la funzione openYearTab rimane invariata)
+        // Logica per i tab degli anni (se necessaria, altrimenti può essere semplificata)
     };
     
     // --- LOGICA DASHBOARD ADMIN ---
@@ -254,38 +254,139 @@ document.addEventListener('DOMContentLoaded', function() {
 
         try {
             const response = await fetch(`${API_BASE_URL}${urlMap[action].path}`, { method: urlMap[action].method, credentials: 'include' });
-            const result = await response.json();
-            if (response.ok) {
-                if (action === 'download') {
-                    if (result.download_url) window.open(result.download_url, '_blank');
-                    else throw new Error('URL di download non trovato.');
+            if (action === 'download') {
+                if (!response.ok) throw new Error('Download non autorizzato o file non trovato.');
+                const result = await response.json();
+                if (result.download_url) {
+                    window.open(result.download_url, '_blank');
                 } else {
-                    alert(result.message);
-                    if (callbackOnSuccess) callbackOnSuccess();
+                    throw new Error('URL di download non trovato.');
                 }
             } else {
-                throw new Error(result.error || 'Azione fallita');
+                const result = await response.json();
+                if (response.ok) {
+                    alert(result.message);
+                    if (callbackOnSuccess) callbackOnSuccess();
+                } else {
+                    throw new Error(result.error || 'Azione fallita');
+                }
             }
         } catch (error) {
             alert(`Errore: ${error.message}`);
         }
     }
+
+    // --- LOGICA PER LE PAGINE DI AUTENTICAZIONE E UPLOAD ---
+    function setupAuthAndUploadPages() {
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const uploadNoteForm = document.getElementById('uploadNoteForm');
+
+        if (loginForm) {
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = loginForm.username.value;
+                const password = loginForm.password.value;
+                const messageDiv = document.getElementById('login-message');
+                messageDiv.textContent = ''; // Pulisci messaggi precedenti
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password })
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        messageDiv.className = 'auth-message success';
+                        messageDiv.textContent = data.message;
+                        window.location.href = 'index.html';
+                    } else {
+                        throw new Error(data.error || 'Errore sconosciuto');
+                    }
+                } catch (error) {
+                    messageDiv.className = 'auth-message error';
+                    messageDiv.textContent = `Errore: ${error.message}`;
+                }
+            });
+        }
+
+        if (registerForm) {
+            registerForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = registerForm.username.value;
+                const email = registerForm.email.value;
+                const password = registerForm.password.value;
+                const confirmPassword = registerForm['confirm-password'].value;
+                const messageDiv = document.getElementById('register-message');
+                messageDiv.textContent = ''; // Pulisci
+
+                if (password !== confirmPassword) {
+                    messageDiv.className = 'auth-message error';
+                    messageDiv.textContent = 'Le password non coincidono.';
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/register`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, email, password })
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        messageDiv.className = 'auth-message success';
+                        messageDiv.textContent = data.message + ' Ora puoi effettuare il login.';
+                        registerForm.reset();
+                    } else {
+                        throw new Error(data.error || 'Errore durante la registrazione');
+                    }
+                } catch (error) {
+                    messageDiv.className = 'auth-message error';
+                    messageDiv.textContent = `Errore: ${error.message}`;
+                }
+            });
+        }
+    }
+
+    // --- FUNZIONE DI CALLBACK GLOBALE PER GOOGLE SIGN-IN ---
+    window.onSignIn = async function(googleResponse) {
+        const token = googleResponse.credential;
+        const messageDiv = document.getElementById('login-message') || document.getElementById('register-message');
+        
+        if (messageDiv) messageDiv.textContent = '';
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/google-login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: token })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                if(messageDiv) {
+                    messageDiv.className = 'auth-message success';
+                    messageDiv.textContent = data.message;
+                }
+                window.location.href = 'index.html';
+            } else {
+                throw new Error(data.error || 'Login con Google fallito');
+            }
+        } catch (error) {
+            if(messageDiv) {
+                messageDiv.className = 'auth-message error';
+                messageDiv.textContent = `Errore: ${error.message}`;
+            }
+        }
+    };
+    
     // --- ESECUZIONE ALL'AVVIO ---
     
     activateMainTabAndHeader();
     updateUserStatusNavbar();
     setupLogout();
-    if (document.getElementById('logoutLink')) {
-        document.getElementById('logoutLink').addEventListener('click', async function(e) {
-            e.preventDefault();
-            await fetch(`${API_BASE_URL}/api/logout`, { method: 'POST' });
-            window.location.href = 'login.html';
-        });
-    }
 
-    const isCoursePage = currentPage.startsWith('ing_') || 
-                         ['scienze_biologiche.html', 'biotecnologie.html', 'scienze_naturali.html', 'scienze_motorie.html', 
-                          'economia_aziendale.html', 'economia_bancaria.html', 'statistica.html', 'giurisprudenza.html'].includes(currentPage);
+    const isCoursePage = ['ing_energetica.html', 'ing_civile.html', 'ing_informatica.html', 'ing_biomedica.html', 'economia_aziendale.html', 'giurisprudenza.html', 'statistica.html', 'economia_bancaria.html', 'scienze_biologiche.html', 'biotecnologie.html', 'scienze_naturali.html', 'scienze_motorie.html'].includes(currentPage);
     
     if (isCoursePage && document.querySelector('.year-tabs button')) {
         document.querySelector('.year-tabs button').click();
@@ -298,7 +399,4 @@ document.addEventListener('DOMContentLoaded', function() {
     if (currentPage === 'admin_dashboard.html') {
         setupAdminDashboard();
     }
-
-    // Rendi la funzione di login con Google globalmente accessibile
-    window.onSignIn = onSignIn;
 });
