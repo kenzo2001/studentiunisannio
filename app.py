@@ -313,16 +313,28 @@ def admin_required(f):
 
 # Endpoint per visualizzare appunti in attesa di approvazione
 # NUOVO ENDPOINT: Ottiene TUTTI gli appunti per la gestione amministrativa
+
+# NUOVO ENDPOINT: Ottiene TUTTI gli appunti per la gestione amministrativa
 @app.route('/api/admin/all_notes', methods=['GET'])
 @login_required
 @admin_required
 def get_all_notes_for_admin():
-    # Recupera tutti gli appunti, indipendentemente dallo stato
-    all_notes = Note.query.order_by(Note.upload_date.desc()).all()
+    # Recupera tutti gli appunti, indipendentemente dallo stato,
+    # e carica anche i dati del corso associato.
+    all_notes = db.session.query(Note, Course).join(Course).order_by(Note.upload_date.desc()).all()
+
     if not all_notes:
         return jsonify({"message": "Nessun appunto trovato nel sistema."}), 404
-    return jsonify([n.to_dict() for n in all_notes])
 
+    notes_data = []
+    for note, course in all_notes:
+        note_dict = note.to_dict()
+        # Aggiungi il nome e l'anno del corso al dizionario dell'appunto
+        note_dict['course_name'] = course.name
+        note_dict['course_year'] = course.year
+        notes_data.append(note_dict)
+
+    return jsonify(notes_data)
 # Puoi mantenere get_pending_notes se desideri una sezione separata per solo quelli in attesa,
 # ma per la funzionalità richiesta, get_all_notes_for_admin è sufficiente.
 # Se vuoi rimuovere get_pending_notes e usare solo get_all_notes_for_admin,

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta name="description" content="Appunti, dispense e materiale per tutti gli esami del corso di laurea in Economia Aziendale a Unisannio. Scegli l'anno e trova le risorse.">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STUDENTI UNISANNIO - Economia Aziendale</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>STUDENTI UNISANNIO</h1>
+        <p>gli studenti x gli studenti</p>
+    </header>
+    <nav class="navbar">
+        <a id="nav-home" href="index.html">Home</a>
+        <a id="nav-ding" href="ding.html">DING</a>
+        <a id="nav-dst" href="dst.html">DST</a>
+        <a id="nav-demm" href="demm.html">DEMM</a>
+                <a id="nav-admin" href="admin_dashboard.html">Dashboard Admin</a>
+
+        <div id="navbar-user-area">
+            <span id="user-status"></span>
+            <a id="nav-register" href="register.html">Registrati</a>
+            <a id="nav-login" href="login.html">Login</a>
+            <a id="nav-logout" href="#">Logout</a>
+            <a id="nav-upload" href="upload_note.html">Carica Appunto</a>
+        </div>
+    </nav>
+    <main>
+        <h2>Corsi di Economia Aziendale</h2>
+        <p>Scegli l'anno di studio per visualizzare i corsi disponibili.</p>
+        <div class="year-tabs-container">
+            <div class="year-tabs">
+                <button onclick="openYearTab(event, 'primoAnnoAziendale')">1° Anno</button>
+                <button onclick="openYearTab(event, 'secondoAnnoAziendale')">2° Anno</button>
+                <button onclick="openYearTab(event, 'terzoAnnoAziendale')">3° Anno</button>
+            </div>
+        </div>
+        <div id="primoAnnoAziendale" class="year-tabcontent"></div>
+        <div id="secondoAnnoAziendale" class="year-tabcontent"></div>
+        <div id="terzoAnnoAziendale" class="year-tabcontent"></div>
+    </main>
+    <footer>
+        <p>Per informazioni sull'associazione: <a href="mailto:cusas1991@gmail.com" style="color: white;">cusas1991@gmail.com</a></p>
+        <p>Per supporto tecnico sul sito: <a href="mailto:francescoenzoalloro@gmail.com" style="color: white;">francescoenzoalloro@gmail.com</a></p>
+        <p>&copy; 2025 Studenti Unisannio - Tutti i diritti riservati.</p>
+        <p>Powered by cusas engegnering</p>
+    </footer>
+    <script src="script.js"></script>
+</body>
+</html>

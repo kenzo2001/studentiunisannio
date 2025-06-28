@@ -2,22 +2,16 @@ import os
 from app import app, db, Department, DegreeProgram, Course, Note
 from werkzeug.security import generate_password_hash
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy import func # Import func for case-insensitive queries
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
 load_dotenv()
 
 def initialize_database():
-
-
     print("INIT_DB: Inizio inizializzazione database.")
 
     with app.app_context():
         try:
-            # ATTENZIONE: db.drop_all() è stato rimosso per la versione persistente.
-            # Se hai bisogno di resettare il DB, usa il metodo temporaneo con db.drop_all()
-            # o svuotalo manualmente tramite psql.
             db.create_all()
             print("INIT_DB: Struttura tabelle SQL verificata/creata.")
         except Exception as e:
@@ -29,21 +23,15 @@ def initialize_database():
         # --- 1. Popolamento Dipartimenti ---
         departments_to_ensure = ['DING', 'DST', 'DEMM']
         for dept_name in departments_to_ensure:
-            # Controllo case-insensitive per i dipartimenti
-            if not Department.query.filter(func.lower(Department.name) == dept_name.lower()).first():
+            if not Department.query.filter_by(name=dept_name).first():
                 db.session.add(Department(name=dept_name))
         db.session.commit()
 
         # --- 2. Popolamento Corsi di Laurea Triennale ---
-        # Recupera i dipartimenti con un controllo case-insensitive per sicurezza
-        ding_dept = Department.query.filter(func.lower(Department.name) == 'ding').one_or_none()
-        dst_dept = Department.query.filter(func.lower(Department.name) == 'dst').one_or_none()
-        demm_dept = Department.query.filter(func.lower(Department.name) == 'demm').one_or_none()
-
-        if not ding_dept or not dst_dept or not demm_dept:
-            print("ERRORE INIT_DB: Impossibile trovare uno o più dipartimenti. Assicurarsi che i dipartimenti siano stati creati correttamente.")
-            return # Esci se i dipartimenti non sono stati creati
-
+        ding_dept = Department.query.filter_by(name='DING').one()
+        dst_dept = Department.query.filter_by(name='DST').one()
+        demm_dept = Department.query.filter_by(name='DEMM').one()
+        
         degree_programs_to_ensure = [
             # DING
             {'name': 'Ingegneria Energetica', 'department': ding_dept},
@@ -52,203 +40,137 @@ def initialize_database():
             {'name': 'Ingegneria Biomedica', 'department': ding_dept},
             # DEMM
             {'name': 'Economia Aziendale', 'department': demm_dept},
-            {'name': 'Management', 'department': demm_dept},
+            {'name': 'Giurisprudenza', 'department': demm_dept},
+            {'name': 'Statistica', 'department': demm_dept},
+            {'name': 'Economia Bancaria e Finanziaria', 'department': demm_dept},
             # DST
             {'name': 'Scienze Biologiche', 'department': dst_dept},
             {'name': 'Biotecnologie', 'department': dst_dept},
             {'name': 'Scienze Naturali, Geologiche e Ambientali', 'department': dst_dept},
             {'name': 'Scienze Motorie per lo Sport e la Salute', 'department': dst_dept},
         ]
-
-        # Fase Combinata: Assicurare l'esistenza dei DegreeProgram canonici, normalizzare i nomi,
-        # re-linkare i Corsi e eliminare i duplicati.
-        print("INIT_DB: Inizio fase combinata per i DegreeProgram.")
-        with db.session.no_autoflush: # Disabilita l'autoflush per l'intera operazione complessa
-            for dp_data in degree_programs_to_ensure:
-                canonical_name = dp_data['name']
-                department = dp_data['department']
-                
-                # Trova TUTTE le voci esistenti che corrispondono in modo case-insensitive per questo nome e dipartimento
-                existing_matches = DegreeProgram.query.filter(
-                    func.lower(DegreeProgram.name) == canonical_name.lower(),
-                    DegreeProgram.department_id == department.id
-                ).all()
-
-                canonical_entry = None
-
-                if existing_matches:
-                    # Cerca una corrispondenza esatta per il nome canonico tra quelle esistenti
-                    canonical_entry = next((dp for dp in existing_matches if dp.name == canonical_name), None)
-                    
-                    if not canonical_entry:
-                        # Se nessuna corrispondenza esatta, prendi la prima esistente e rendila canonica
-                        canonical_entry = existing_matches[0]
-                        print(f"INIT_DB: Nessuna versione esatta di '{canonical_name}' trovata. Usando '{existing_matches[0].name}' (ID {existing_matches[0].id}) come base canonica.")
-                        
-                    # Assicurati che l'entrata canonica abbia il nome corretto
-                    if canonical_entry.name != canonical_name:
-                        print(f"INIT_DB: Normalizzando il nome del corso di laurea da '{canonical_entry.name}' a '{canonical_name}' (ID {canonical_entry.id}).")
-                        canonical_entry.name = canonical_name
-                    
-                    # Processa i duplicati: re-linka i corsi ed elimina i DegreeProgram duplicati
-                    for dp_duplicate in existing_matches:
-                        if dp_duplicate.id != canonical_entry.id: # Se non è quello canonico
-                            courses_to_relink = Course.query.filter_by(degree_program_id=dp_duplicate.id).all()
-                            for course in courses_to_relink:
-                                course.degree_program_id = canonical_entry.id # Relinka
-                            print(f"INIT_DB: Relinkati {len(courses_to_relink)} corsi dal duplicato ID {dp_duplicate.id} a canonico ID {canonical_entry.id}.")
-                            db.session.delete(dp_duplicate) # Marca il duplicato per l'eliminazione
-                            print(f"INIT_DB: Eliminato DegreeProgram duplicato: '{dp_duplicate.name}' (ID {dp_duplicate.id}).")
-                
-                else: # Nessuna corrispondenza esistente trovata (anche case-insensitive)
-                    # Aggiungi la nuova entrata canonica
-                    new_program = DegreeProgram(name=canonical_name, department=department)
-                    db.session.add(new_program)
-                    canonical_entry = new_program # Imposta il nuovo oggetto come canonico
-                    print(f"INIT_DB: Aggiunto nuovo corso di laurea canonico: '{canonical_name}'.")
-
-                # canonical_entry sarà tracciato dalla sessione se il suo nome è stato aggiornato o è stato appena aggiunto.
-
-        db.session.commit() # Esegui il commit di tutte le modifiche dalla fase combinata
-        print("INIT_DB: Fase combinata per i DegreeProgram completata.")
-
+        for dp_data in degree_programs_to_ensure:
+            if not DegreeProgram.query.filter_by(name=dp_data['name']).first():
+                db.session.add(DegreeProgram(name=dp_data['name'], department=dp_data['department']))
+        db.session.commit()
 
         # --- 3. Popolamento Esami ---
         try:
-            # Recupera i programmi. Ora, .one() dovrebbe funzionare poiché i duplicati sono stati gestiti.
             programs = {
-                'Ingegneria Energetica': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'ingegneria energetica').one(),
-                'Ingegneria Civile': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'ingegneria civile').one(),
-                'Ingegneria Informatica': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'ingegneria informatica').one(),
-                'Ingegneria Biomedica': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'ingegneria biomedica').one(),
-                'Scienze Biologiche': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'scienze biologiche').one(),
-                'Biotecnologie': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'biotecnologie').one(),
-                'Scienze Naturali, Geologiche e Ambientali': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'scienze naturali, geologiche e ambientali').one(),
-                'Scienze Motorie per lo Sport e la Salute': DegreeProgram.query.filter(func.lower(DegreeProgram.name) == 'scienze motorie per lo sport e la salute').one(),
+                'Ingegneria Energetica': DegreeProgram.query.filter_by(name='Ingegneria Energetica').one(),
+                'Ingegneria Civile': DegreeProgram.query.filter_by(name='Ingegneria Civile').one(),
+                'Ingegneria Informatica': DegreeProgram.query.filter_by(name='Ingegneria Informatica').one(),
+                'Ingegneria Biomedica': DegreeProgram.query.filter_by(name='Ingegneria Biomedica').one(),
+                'Scienze Biologiche': DegreeProgram.query.filter_by(name='Scienze Biologiche').one(),
+                'Biotecnologie': DegreeProgram.query.filter_by(name='Biotecnologie').one(),
+                'Scienze Naturali, Geologiche e Ambientali': DegreeProgram.query.filter_by(name='Scienze Naturali, Geologiche e Ambientali').one(),
+                'Scienze Motorie per lo Sport e la Salute': DegreeProgram.query.filter_by(name='Scienze Motorie per lo Sport e la Salute').one(),
+                'Economia Aziendale': DegreeProgram.query.filter_by(name='Economia Aziendale').one(),
+                'Giurisprudenza': DegreeProgram.query.filter_by(name='Giurisprudenza').one(),
+                'Statistica': DegreeProgram.query.filter_by(name='Statistica').one(),
+                'Economia Bancaria e Finanziaria': DegreeProgram.query.filter_by(name='Economia Bancaria e Finanziaria').one(),
             }
 
             courses_to_add = [
-    # ========================== Ingegneria Energetica ==========================
-    # --- 1° Anno ---
-    ('Analisi Matematica I', 1, programs['Ingegneria Energetica']),
-    ('Analisi Matematica II', 1, programs['Ingegneria Energetica']),
-    ('Fisica Generale I', 1, programs['Ingegneria Energetica']),
-    ('Fisica Generale II', 1, programs['Ingegneria Energetica']),
-    ('Algebra Lineare Geometria e ricerca operativa', 1, programs['Ingegneria Energetica']),
-    ('Chimica', 1, programs['Ingegneria Energetica']),
-    ('Elementi di Informatica', 1, programs['Ingegneria Energetica']),
-    ('Fondamenti della misurazione', 1, programs['Ingegneria Energetica']),
-    ('Inglese', 1, programs['Ingegneria Energetica']),
+                # ========================== Ingegneria Energetica ==========================
+                ('Analisi Matematica I', 1, programs['Ingegneria Energetica']),
+                ('Analisi Matematica II', 1, programs['Ingegneria Energetica']),
+                ('Fisica Generale I', 1, programs['Ingegneria Energetica']),
+                ('Fisica Generale II', 1, programs['Ingegneria Energetica']),
+                ('Algebra Lineare Geometria e ricerca operativa', 1, programs['Ingegneria Energetica']),
+                ('Chimica', 1, programs['Ingegneria Energetica']),
+                ('Elementi di Informatica', 1, programs['Ingegneria Energetica']),
+                ('Fondamenti della misurazione', 1, programs['Ingegneria Energetica']),
+                ('Inglese', 1, programs['Ingegneria Energetica']),
+                ('Modelli di Reattori Chimici', 2, programs['Ingegneria Energetica']),
+                ('Sistemi Elettrici per L^Energia', 2, programs['Ingegneria Energetica']),
+                ('Termofluido Dinamica e Trasmissione del Calore', 2, programs['Ingegneria Energetica']),
+                ('Meccanica Applicata alle Macchine', 2, programs['Ingegneria Energetica']),
+                ('Elettrotecnica', 2, programs['Ingegneria Energetica']),
+                ('Fisica Tecnica', 2, programs['Ingegneria Energetica']),
+                ('Processi di Combustione', 2, programs['Ingegneria Energetica']),
+                ('Macchine a Fluido', 2, programs['Ingegneria Energetica']),
+                ('Impianti Chimici per L^Energia', 3, programs['Ingegneria Energetica']),
+                ('Impianti Industriali', 3, programs['Ingegneria Energetica']),
+                ('Energetica', 3, programs['Ingegneria Energetica']),
+                ('Tecnologie delle Fonti Rinnovabili', 3, programs['Ingegneria Energetica']),
+                ('Sistemi Elettrici Industriali', 3, programs['Ingegneria Energetica']),
+                ('Elementi di Ingegneria Strutturali', 3, programs['Ingegneria Energetica']),
 
-    # --- 2° Anno ---
-    ('Modelli di Reattori Chimici', 2, programs['Ingegneria Energetica']),
-    ('Sistemi Elettrici per L^Energia', 2, programs['Ingegneria Energetica']),
-    ('Termofluido Dinamica e Trasmissione del Calore', 2, programs['Ingegneria Energetica']),
-    ('Meccanica Applicata alle Macchine', 2, programs['Ingegneria Energetica']),
-    ('Elettrotecnica', 2, programs['Ingegneria Energetica']),
-    ('Fisica Tecnica', 2, programs['Ingegneria Energetica']),
-    ('Processi di Combustione', 2, programs['Ingegneria Energetica']),
-    ('Macchine a Fluido', 2, programs['Ingegneria Energetica']),
+                # ========================== Ingegneria Civile =============================
+                ('Analisi Matematica I', 1, programs['Ingegneria Civile']),
+                ('Analisi Matematica II', 1, programs['Ingegneria Civile']),
+                ('Fisica Generale ', 1, programs['Ingegneria Civile']),
+                ('Geometria e Algebra Lineare', 1, programs['Ingegneria Civile']),
+                ('Elementi di Informatica', 1, programs['Ingegneria Civile']),
+                ('Scienze e tecnologia dei Materiali', 1, programs['Ingegneria Civile']),
+                ('Inglese', 1, programs['Ingegneria Civile']),
+                ('Meccanica Razionale', 2, programs['Ingegneria Civile']),
+                ('Scienza delle Costruzioni', 2, programs['Ingegneria Civile']),
+                ('Fisica Tecnica', 2, programs['Ingegneria Civile']),
+                ('Idraulica', 2, programs['Ingegneria Civile']),
+                ('Tecnica Urbanistica', 2, programs['Ingegneria Civile']),
+                ('Ingegneria dei Sistemi di trasporto I', 2, programs['Ingegneria Civile']),
+                ('Ingegneria dei Sistemi di trasporto II', 2, programs['Ingegneria Civile']),
+                ('Fondamenti di Infrastrutture Viaree', 2, programs['Ingegneria Civile']),
+                ('Climatologia dell Ambiente Costruito', 2, programs['Ingegneria Civile']),
+                ('Tecnica delle Costruzioni I', 3, programs['Ingegneria Civile']), 
+                ('Tecnica delle Costruzioni II', 3, programs['Ingegneria Civile']),
+                ('Costruzioni Idrauliche', 3, programs['Ingegneria Civile']),
+                ('Topografia e Cartografia', 3, programs['Ingegneria Civile']),
+                ('Principi di Geotecnica', 3, programs['Ingegneria Civile']),
+                ('Fondazioni ed Opere di Sostegno', 3, programs['Ingegneria Civile']),
 
-    # --- 3° Anno ---
-    ('Impianti Chimici per L^Energia', 3, programs['Ingegneria Energetica']),
-    ('Impianti Industriali', 3, programs['Ingegneria Energetica']),
-    ('Energetica', 3, programs['Ingegneria Energetica']),
-    ('Tecnologie delle Fonti Rinnovabili', 3, programs['Ingegneria Energetica']),
-    ('Sistemi Elettrici Industriali', 3, programs['Ingegneria Energetica']),
-    ('Elementi di Ingegneria Strutturali', 3, programs['Ingegneria Energetica']),
+                # ======================== Ingegneria Informatica ==========================
+                ('Analisi Matematica I', 1, programs['Ingegneria Informatica']),
+                ('Analisi Matematica II', 1, programs['Ingegneria Informatica']),
+                ('Fisica Generale II', 1, programs['Ingegneria Informatica']),
+                ('Fisica Generale I', 1, programs['Ingegneria Informatica']),
+                ('Matematica per l Ingegneria dell Informazione', 1, programs['Ingegneria Informatica']),
+                ('Programmazione I', 1, programs['Ingegneria Informatica']),
+                ('Inglese', 1, programs['Ingegneria Informatica']),
+                ('Calcolatori Elettronici', 1, programs['Ingegneria Informatica']),
+                ('Economia Aziendale', 1, programs['Ingegneria Informatica']),
+                ('Fondamenti di Telecomunicazione', 2, programs['Ingegneria Informatica']),
+                ('Sistemi Operativi', 2, programs['Ingegneria Informatica']),
+                ('Programmazione II', 2, programs['Ingegneria Informatica']),
+                ('Elettrotecnica', 2, programs['Ingegneria Informatica']),
+                ('Elettronica', 2, programs['Ingegneria Informatica']),
+                ('Sistemi Dinamici ', 2, programs['Ingegneria Informatica']),
+                ('Controlli Automatici', 2, programs['Ingegneria Informatica']),
+                ('Basi di Dati', 3, programs['Ingegneria Informatica']),
+                ('Misure Elettroniche', 3, programs['Ingegneria Informatica']),
+                ('Ingegneria del Software', 3, programs['Ingegneria Informatica']),
+                ('Algoritmi e Strutture Dati', 3, programs['Ingegneria Informatica']),
+                ('Computazione Pervasiva', 3, programs['Ingegneria Informatica']),
+                ('Data analycist', 3, programs['Ingegneria Informatica']),
+                ('PSR ', 3, programs['Ingegneria Informatica']),
 
-    # ========================== Ingegneria Civile =============================
-    # --- 1° Anno ---
-    ('Analisi Matematica I', 1, programs['Ingegneria Civile']),
-    ('Analisi Matematica II', 1, programs['Ingegneria Civile']),
-    ('Fisica Generale ', 1, programs['Ingegneria Civile']),
-    ('Geometria e Algebra Lineare', 1, programs['Ingegneria Civile']),
-    ('Elementi di Informatica', 1, programs['Ingegneria Civile']),
-    ('Scienze e tecnologia dei Materiali', 1, programs['Ingegneria Civile']),
-    ('Inglese', 1, programs['Ingegneria Civile']),
-
-    # --- 2° Anno ---
-    ('Meccanica Razionale', 2, programs['Ingegneria Civile']),
-    ('Scienza delle Costruzioni', 2, programs['Ingegneria Civile']),
-    ('Fisica Tecnica', 2, programs['Ingegneria Civile']),
-    ('Idraulica', 2, programs['Ingegneria Civile']),
-    ('Tecnica Urbanistica', 2, programs['Ingegneria Civile']),
-    ('Ingegneria dei Sistemi di trasporto I', 2, programs['Ingegneria Civile']),
-    ('Ingegneria dei Sistemi di trasporto II', 2, programs['Ingegneria Civile']),
-    ('Fondamenti di Infrastrutture Viaree', 2, programs['Ingegneria Civile']),
-    ('Climatologia dell Ambiente Costruito', 2, programs['Ingegneria Civile']),
-
-    # --- 3° Anno ---
-    ('Tecnica delle Costruzioni I', 3, programs['Ingegneria Civile']), # <-- VIRGOLA CORRETTA
-    ('Tecnica delle Costruzioni II', 3, programs['Ingegneria Civile']),
-    ('Costruzioni Idrauliche', 3, programs['Ingegneria Civile']),
-    ('Topografia e Cartografia', 3, programs['Ingegneria Civile']),
-    ('Principi di Geotecnica', 3, programs['Ingegneria Civile']),
-    ('Fondazioni ed Opere di Sostegno', 3, programs['Ingegneria Civile']),
-
-    # ======================== Ingegneria Informatica ==========================
-    # --- 1° Anno ---
-    ('Analisi Matematica I', 1, programs['Ingegneria Informatica']),
-    ('Analisi Matematica II', 1, programs['Ingegneria Informatica']),
-    ('Fisica Generale II', 1, programs['Ingegneria Informatica']),
-    ('Fisica Generale I', 1, programs['Ingegneria Informatica']),
-    ('Matematica per l Ingegneria dell Informazione', 1, programs['Ingegneria Informatica']),
-    ('Programmazione I', 1, programs['Ingegneria Informatica']),
-    ('Inglese', 1, programs['Ingegneria Informatica']),
-    ('Calcolatori Elettronici', 1, programs['Ingegneria Informatica']),
-    ('Economia Aziendale', 1, programs['Ingegneria Informatica']),
-
-    # --- 2° Anno ---
-    ('Fondamenti di Telecomunicazione', 2, programs['Ingegneria Informatica']),
-    ('Sistemi Operativi', 2, programs['Ingegneria Informatica']),
-    ('Programmazione II', 2, programs['Ingegneria Informatica']),
-    ('Elettrotecnica', 2, programs['Ingegneria Informatica']),
-    ('Elettronica', 2, programs['Ingegneria Informatica']),
-    ('Sistemi Dinamici ', 2, programs['Ingegneria Informatica']),
-    ('Controlli Automatici', 2, programs['Ingegneria Informatica']),
-    # --- 3° Anno ---
-    
-    ('Basi di Dati', 3, programs['Ingegneria Informatica']),
-    ('Misure Elettroniche', 3, programs['Ingegneria Informatica']),
-    ('Ingegneria del Software', 3, programs['Ingegneria Informatica']),
-    ('Algoritmi e Strutture Dati', 3, programs['Ingegneria Informatica']),
-    ('Computazione Pervasiva', 3, programs['Ingegneria Informatica']),
-    ('Data analycist', 3, programs['Ingegneria Informatica']),
-    ('PSR ', 3, programs['Ingegneria Informatica']),
-
-    # ========================= Ingegneria Biomedica ===========================
-    # --- 1° Anno ---
-    ('Analisi Matematica I', 1, programs['Ingegneria Biomedica']),
-    ('Analisi Matematica II', 1, programs['Ingegneria Biomedica']),
-    ('Fisica Generale II', 1, programs['Ingegneria Biomedica']),
-    ('Fisica Generale I', 1, programs['Ingegneria Biomedica']),
-    ('Geometria e Algebra Lineare', 1, programs['Ingegneria Biomedica']),
-    ('Inglese', 1, programs['Ingegneria Biomedica']),
-    ('Chimica', 1, programs['Ingegneria Biomedica']),
-    ('Programmazione I', 1, programs['Ingegneria Biomedica']),
-    ('Programmazione II ed Inteligenza Artificiale', 1, programs['Ingegneria Biomedica']),
-
-    # --- 2° Anno ---
-    ('Misure Elettroniche', 2, programs['Ingegneria Biomedica']),
-    ('Elementi di Biochimica', 2, programs['Ingegneria Biomedica']),
-    ('Elettrotecnica', 2, programs['Ingegneria Biomedica']),
-    ('Elettronica', 2, programs['Ingegneria Biomedica']),
-    ('Matematica II', 2, programs['Ingegneria Biomedica']),
-    ('Sistemi Dinamici', 2, programs['Ingegneria Biomedica']),
-    ('Probabilità e segnali', 2, programs['Ingegneria Biomedica']),
-    ('Elaborazione Numerica dei segnali', 2, programs['Ingegneria Biomedica']),
-
-    # --- 3° Anno ---
-    ('BioElettromagnetismo', 3, programs['Ingegneria Biomedica']),
-    ('Sistemi di Acquisizione Dati', 3, programs['Ingegneria Biomedica']),
-    ('Sistemi Biomedicali', 3, programs['Ingegneria Biomedica']),
-    ('Laboratorio di BioElettronica', 3, programs['Ingegneria Biomedica']),
-    ('Laboratorio di Misure Elettroniche per Applicazioni Medicali', 3, programs['Ingegneria Biomedica']),
-
+                # ========================= Ingegneria Biomedica ===========================
+                ('Analisi Matematica I', 1, programs['Ingegneria Biomedica']),
+                ('Analisi Matematica II', 1, programs['Ingegneria Biomedica']),
+                ('Fisica Generale II', 1, programs['Ingegneria Biomedica']),
+                ('Fisica Generale I', 1, programs['Ingegneria Biomedica']),
+                ('Geometria e Algebra Lineare', 1, programs['Ingegneria Biomedica']),
+                ('Inglese', 1, programs['Ingegneria Biomedica']),
+                ('Chimica', 1, programs['Ingegneria Biomedica']),
+                ('Programmazione I', 1, programs['Ingegneria Biomedica']),
+                ('Programmazione II ed Inteligenza Artificiale', 1, programs['Ingegneria Biomedica']),
+                ('Misure Elettroniche', 2, programs['Ingegneria Biomedica']),
+                ('Elementi di Biochimica', 2, programs['Ingegneria Biomedica']),
+                ('Elettrotecnica', 2, programs['Ingegneria Biomedica']),
+                ('Elettronica', 2, programs['Ingegneria Biomedica']),
+                ('Matematica II', 2, programs['Ingegneria Biomedica']),
+                ('Sistemi Dinamici', 2, programs['Ingegneria Biomedica']),
+                ('Probabilità e segnali', 2, programs['Ingegneria Biomedica']),
+                ('Elaborazione Numerica dei segnali', 2, programs['Ingegneria Biomedica']),
+                ('BioElettromagnetismo', 3, programs['Ingegneria Biomedica']),
+                ('Sistemi di Acquisizione Dati', 3, programs['Ingegneria Biomedica']),
+                ('Sistemi Biomedicali', 3, programs['Ingegneria Biomedica']),
+                ('Laboratorio di BioElettronica', 3, programs['Ingegneria Biomedica']),
+                ('Laboratorio di Misure Elettroniche per Applicazioni Medicali', 3, programs['Ingegneria Biomedica']),
 
                 # ========================== DST (Corsi Ufficiali) =============================
-                # --- Scienze Biologiche ---
                 ('BIOLOGIA E SISTEMATICA VEGETALE', 1, programs['Scienze Biologiche']),
                 ('CHIMICA GENERALE', 1, programs['Scienze Biologiche']),
                 ('CHIMICA ORGANICA', 1, programs['Scienze Biologiche']),
@@ -271,7 +193,7 @@ def initialize_database():
                 ('PROVA FINALE (Scienze Biologiche)', 3, programs['Scienze Biologiche']),
                 ('TIROCINIO (Scienze Biologiche)', 3, programs['Scienze Biologiche']),
 
-                # --- Biotecnologie ---
+                #=========================== biotecnologie============================0
                 ('BIOLOGIA CELLULARE', 1, programs['Biotecnologie']),
                 ('BIOTECNOLOGIE E DIRITTO DELL UNIONE EUROPEA', 1, programs['Biotecnologie']),
                 ('CHIMICA GENERALE E INORGANICA (Biotecnologie)', 1, programs['Biotecnologie']),
@@ -294,8 +216,7 @@ def initialize_database():
                 ('LABORATORI INTEGRATI', 3, programs['Biotecnologie']),
                 ('PROVA FINALE (Biotecnologie)', 3, programs['Biotecnologie']),
                 ('TIROCINIO FORMATIVO', 3, programs['Biotecnologie']),
-
-                # --- Scienze Naturali, Geologiche e Ambientali ---
+                #======================= scienze biologiche==================================================
                 ('CHIMICA GENERALE E INORGANICA (Scienze Naturali)', 1, programs['Scienze Naturali, Geologiche e Ambientali']),
                 ('CHIMICA ORGANICA CON ELEMENTI DI BIOCHIMICA', 1, programs['Scienze Naturali, Geologiche e Ambientali']),
                 ('FONDAMENTI DI BIOLOGIA', 1, programs['Scienze Naturali, Geologiche e Ambientali']),
@@ -318,8 +239,7 @@ def initialize_database():
                 ('PROVA FINALE (Scienze Naturali)', 3, programs['Scienze Naturali, Geologiche e Ambientali']),
                 ('SOSTENIBILITÀ AMBIENTALE E PROTEZIONE DELLA NATURA', 3, programs['Scienze Naturali, Geologiche e Ambientali']),
                 ('TIROCINIO (Scienze Naturali)', 3, programs['Scienze Naturali, Geologiche e Ambientali']),
-
-                # --- Scienze Motorie per lo Sport e la Salute ---
+                #================================ scienze motorie===================================
                 ('Anatomia Umana', 1, programs['Scienze Motorie per lo Sport e la Salute']),
                 ('Biologia applicata', 1, programs['Scienze Motorie per lo Sport e la Salute']),
                 ('Biochimica (Scienze Motorie)', 1, programs['Scienze Motorie per lo Sport e la Salute']),
@@ -339,27 +259,87 @@ def initialize_database():
                 ('Genetica e performance sportiva', 3, programs['Scienze Motorie per lo Sport e la Salute']),
                 ('Patologia generale', 3, programs['Scienze Motorie per lo Sport e la Salute']),
                 ('Farmacologia applicata allo sport', 3, programs['Scienze Motorie per lo Sport e la Salute']),
+
+                # ========================== DEMM (Nuovi Corsi) =============================
+                # --- Economia Aziendale ---
+                ('Ragioneria generale', 1, programs['Economia Aziendale']),
+                ('Economia aziendale', 1, programs['Economia Aziendale']),
+                ('Economia politica', 1, programs['Economia Aziendale']),
+                ('Matematica applicata all’economia', 1, programs['Economia Aziendale']),
+                ('Diritto (commerciale o privato)', 1, programs['Economia Aziendale']),
+                ('Ragioneria applicata', 2, programs['Economia Aziendale']),
+                ('Finanza aziendale', 2, programs['Economia Aziendale']),
+                ('Management / Strategia', 2, programs['Economia Aziendale']),
+                ('Sistemi informativi contabili', 2, programs['Economia Aziendale']),
+                ('Marketing o Sociologia della comunicazione', 2, programs['Economia Aziendale']),
+                ('Organizzazione aziendale', 3, programs['Economia Aziendale']),
+                ('Organizzazione e gestione risorse umane', 3, programs['Economia Aziendale']),
+                ('Geografia del turismo (per curriculum TUR)', 3, programs['Economia Aziendale']),
+                ('Ragioneria imprese turistiche (per curriculum TUR)', 3, programs['Economia Aziendale']),
+                ('Fondamenti di economia politica (per ISS)', 3, programs['Economia Aziendale']),
+
+                # --- Economia Bancaria e Finanziaria ---
+                ('Ragioneria generale ed applicata I', 1, programs['Economia Bancaria e Finanziaria']),
+                ('Matematica finanziaria', 1, programs['Economia Bancaria e Finanziaria']),
+                ('Economia politica', 1, programs['Economia Bancaria e Finanziaria']),
+                ('Diritto bancario / assicurativo', 1, programs['Economia Bancaria e Finanziaria']),
+                ('Diritto privato', 1, programs['Economia Bancaria e Finanziaria']),
+                ('Metodi matematici per economia e finanza', 2, programs['Economia Bancaria e Finanziaria']),
+                ('Mercati finanziari e FinTech', 2, programs['Economia Bancaria e Finanziaria']),
+                ('Finanza e società', 2, programs['Economia Bancaria e Finanziaria']),
+                ('Politiche europee e agrifood financing', 2, programs['Economia Bancaria e Finanziaria']),
+                ('Diritto privato / approfondimenti giuridici', 3, programs['Economia Bancaria e Finanziaria']),
+                ('Storia economica', 3, programs['Economia Bancaria e Finanziaria']),
+                ('Economia e politica dei mercati monetari e finanziari', 3, programs['Economia Bancaria e Finanziaria']),
+                ('Altri insegnamenti specifici o a scelta', 3, programs['Economia Bancaria e Finanziaria']),
+
+                # --- Statistica ---
+                ('Matematica generale', 1, programs['Statistica']),
+                ('Algebra lineare', 1, programs['Statistica']),
+                ('Statistica di base', 1, programs['Statistica']),
+                ('Fondamenti di informatica (se previsto)', 1, programs['Statistica']),
+                ('Analisi dei dati', 2, programs['Statistica']),
+                ('Modelli statistici', 2, programs['Statistica']),
+                ('Tecnica attuariale introduttiva', 2, programs['Statistica']),
+                ('Teoria del rischio', 2, programs['Statistica']),
+                ('Modelli statistici avanzati / inferenza', 3, programs['Statistica']),
+                ('Matematica attuariale e laboratorio', 3, programs['Statistica']),
+                ('Principi di management / risk management', 3, programs['Statistica']),
+                ('Insegnamenti opzionali del piano', 3, programs['Statistica']),
+
+                # --- Giurisprudenza ---
+                ('Istituzioni di diritto romano', 1, programs['Giurisprudenza']),
+                ('Istituzioni di diritto privato (IUS/01)', 1, programs['Giurisprudenza']),
+                ('Diritto costituzionale (IUS/08)', 1, programs['Giurisprudenza']),
+                ('Diritto penale (IUS/14)', 1, programs['Giurisprudenza']),
+                ('Storia e fonti del diritto', 1, programs['Giurisprudenza']),
+                ('Lingua inglese giuridica', 1, programs['Giurisprudenza']),
+                ('Diritto civile', 2, programs['Giurisprudenza']),
+                ('Diritto amministrativo', 2, programs['Giurisprudenza']),
+                ('Diritto processuale civile', 2, programs['Giurisprudenza']),
+                ('Diritto penale II', 2, programs['Giurisprudenza']),
+                ('Mediazione e negoziazione', 2, programs['Giurisprudenza']),
+                ('Insegnamento specifico del curriculum (es. diritto europeo, internazionale…)', 2, programs['Giurisprudenza']),
+                ('Diritto commerciale', 3, programs['Giurisprudenza']),
+                ('Diritto processuale penale', 3, programs['Giurisprudenza']),
+                ('Diritto costituzionale avanzato', 3, programs['Giurisprudenza']),
+                ('Diritto tributario', 3, programs['Giurisprudenza']),
+                ('Diritto del lavoro / previdenza', 3, programs['Giurisprudenza']),
+                ('Diritto internazionale o europeo (curriculum-specifico)', 3, programs['Giurisprudenza']),
+                ('Diritto amministrativo avanzato', 4, programs['Giurisprudenza']),
+                ('Diritto penale avanzato', 4, programs['Giurisprudenza']),
+                ('Diritto processuale civile e penale II (a seconda del curriculum)', 4, programs['Giurisprudenza']),
+                ('Diritto dei mercati e finanza (curriculum DEC – Diritto ed Economia)', 4, programs['Giurisprudenza']),
+                ('Diritto del lavoro avanzato / Diritto del lavoro europeo (curriculum DAZ / INT)', 4, programs['Giurisprudenza']),
+                ('Insegnamenti a scelta specialistici: materia europea, mediazione, comparato…', 4, programs['Giurisprudenza']),
+                ('Ordinamento giudiziario italiano e comparato', 5, programs['Giurisprudenza']),
+                ('Insegnamento specialistico a scelta (collegato al proprio curriculum: es. comparato, europeo, processuale avanzato…)', 5, programs['Giurisprudenza']),
             ]
             
             for name, year, program_obj in courses_to_add:
-                # Controllo case-insensitive per gli esami
-                if not Course.query.filter(
-                    func.lower(Course.name) == name.lower(),
-                    Course.degree_program_id == program_obj.id,
-                    Course.year == year
-                ).first():
+                if not Course.query.filter_by(name=name, degree_program_id=program_obj.id).first():
                     db.session.add(Course(name=name, year=year, degree_program=program_obj))
-                else:
-                    # Se esiste una versione case-insensitive, aggiorna il nome alla versione canonica
-                    existing_course = Course.query.filter(
-                        func.lower(Course.name) == name.lower(),
-                        Course.degree_program_id == program_obj.id,
-                        Course.year == year
-                    ).first()
-                    if existing_course and existing_course.name != name:
-                        print(f"INIT_DB: Normalizzando il nome del corso da '{existing_course.name}' a '{name}' per {program_obj.name}")
-                        existing_course.name = name
-
+            
             db.session.commit()
             print("INIT_DB: Popolamento esami SQL completato.")
         except Exception as e:
@@ -388,8 +368,7 @@ def initialize_database():
         print(f"INIT_DB: Connesso a MongoDB, database: {db_mongo.name}")
         
         users_collection = db_mongo.users
-        # Controllo case-insensitive per l'utente admin
-        if users_collection.count_documents({"username": {"$regex": "admin", "$options": "i"}}) == 0:
+        if users_collection.count_documents({"username": "admin"}) == 0:
             print("INIT_DB: Aggiungendo utente 'admin'...")
             users_collection.insert_one({"username": "admin", "email": "admin@example.com", "password_hash": generate_password_hash("password")})
             print("INIT_DB: Utente 'admin' aggiunto.")
