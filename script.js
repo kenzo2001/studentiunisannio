@@ -123,6 +123,34 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    const logoutBtn = document.getElementById('nav-logout'); // Modificato da 'logoutLink' a 'nav-logout'
+
+    if (logoutBtn) { // Controlla se l'elemento esiste
+        logoutBtn.addEventListener('click', async function(e) {
+            e.preventDefault(); // Previene il comportamento predefinito del link
+
+            try {
+                // Invia la richiesta POST all'endpoint di logout
+                const response = await fetch(`${API_BASE_URL}/api/logout`, { method: 'POST', credentials: 'include' });
+
+                if (response.ok) {
+                    // Reindirizza alla pagina di login solo dopo il successo
+                    window.location.href = 'login.html';
+                } else {
+                    // Gestisci eventuali errori dal server
+                    const errorData = await response.json();
+                    alert(`Errore durante il logout: ${errorData.error || 'Qualcosa è andato storto.'}`);
+                    console.error('Errore logout API:', errorData);
+                }
+            } catch (error) {
+                // Gestisci errori di rete
+                alert('Errore di rete durante il logout. Riprova.');
+                console.error('Errore fetch logout:', error);
+            }
+        });
+    }
+
+
     function loadNotesForCourse(courseId, containerElement) {
         containerElement.innerHTML = `<p style="color: black;">Caricamento appunti...</p>`;
         fetch(`${API_BASE_URL}/api/courses/${courseId}/notes`)
@@ -314,7 +342,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const response = await fetch(`${API_BASE_URL}/api/upload_note`, { method: 'POST', body: formData });
                     const result = await response.json();
                     if (response.ok) {
-                        messageDiv.textContent = 'Appunto caricato con successo!';
+                        messageDiv.textContent = 'Appunto caricato con successo, in attesa di approvazione da admin!';
                         messageDiv.className = 'success';
                         uploadForm.reset();
                     } else {
