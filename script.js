@@ -283,15 +283,36 @@ async function loadAllNotesForAdmin() {
                     <li class="note-admin-item">
                         <h3>${note.title}</h3>
                         <p><strong>Descrizione:</strong> ${note.description || 'Nessuna descrizione.'}</p>
-                        <p><strong>Corso:</strong> ID ${note.course_id}</p>
+                        <p><strong>Corso:</strong> ${note.course_name} (${note.course_year}° Anno)</p>
                         <p><strong>Caricato da:</strong> ${note.uploader_name || 'Anonimo'} il ${new Date(note.upload_date).toLocaleDateString()}</p>
                         <p><strong>Status:</strong> <span class="status-${note.status}">${note.status.toUpperCase()}</span></p>
                         <div class="note-actions">
                             ${note.status !== 'approved' ? `<button class="btn-approve" data-note-id="${note.id}">Approva</button>` : ''}
                             ${note.status !== 'rejected' ? `<button class="btn-reject" data-note-id="${note.id}">Rifiuta</button>` : ''}
+                            <a href="${API_BASE_URL}/api/notes/${note.id}/download" class="download-note-btn">Scarica Appunto</a>
                             <button class="btn-delete" data-note-id="${note.id}">Elimina</button>
                         </div>
                     </li>`;
+                    // Aggiungi event listener per i pulsanti di download
+        notesListDiv.querySelectorAll('.download-note-btn').forEach(button => {
+            button.addEventListener('click', function(event) {
+                event.preventDefault(); // Impedisce il comportamento predefinito del link
+                const downloadApiUrl = this.href;
+                fetch(downloadApiUrl)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.download_url) {
+                            window.open(data.download_url, '_blank'); // Apre il link presigned in una nuova scheda
+                        } else {
+                            alert('Impossibile ottenere il link per il download.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Errore recupero link download:', error);
+                        alert('Si è verificato un errore durante il download.');
+                    });
+            });
+        });
             });
         } else {
             notesHtml += `<p class="no-pending-notes">${notesData.message || 'Nessun appunto disponibile.'}</p>`;
@@ -428,7 +449,7 @@ async function loadAllNotesForAdmin() {
                     const response = await fetch(`${API_BASE_URL}/api/upload_note`, { method: 'POST', body: formData });
                     const result = await response.json();
                     if (response.ok) {
-                        messageDiv.textContent = 'Appunto caricato con successo!';
+                        messageDiv.textContent = 'Appunto caricato con successo, è ora in attesa di approvazione dai nostri admin !';
                         messageDiv.className = 'success';
                         uploadForm.reset();
                     } else {
