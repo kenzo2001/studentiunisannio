@@ -2,8 +2,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const currentPage = window.location.pathname.split('/').pop();
 
     const isLocal = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
-    const API_BASE_URL = isLocal ? 'http://127.0.0.1:5000' : 'https://studentiunisannio.it';
-
+const API_BASE_URL = isLocal ? 'http://127.0.0.1:5000' : window.location.origin;
     const degreeProgramIds = {
         'ing_energetica': 1, 'ing_civile': 2, 'ing_informatica': 3, 'ing_biomedica': 4,
         'economia_aziendale': 5,'giurisprudenza': 6, 'statistica': 7, 'economia_bancaria': 8,
@@ -79,6 +78,48 @@ document.addEventListener('DOMContentLoaded', function() {
             activeLink.classList.add(activeClass);
         }
     }
+
+     const donationModalOverlay = document.getElementById('donation-modal-overlay');
+    const modalCloseBtn = document.getElementById('modal-close-btn');
+    const openDonationModalBtn = document.getElementById('openDonationModal'); // L'ID del bottone che hai aggiunto
+
+    // Funzione per mostrare il modale
+    function showDonationModal() {
+        if (donationModalOverlay) {
+            donationModalOverlay.style.display = 'flex'; // o 'block', a seconda del tuo CSS
+        }
+    }
+
+    // Funzione per nascondere il modale
+    function hideDonationModal() {
+        if (donationModalOverlay) {
+            donationModalOverlay.style.display = 'none';
+        }
+    }
+
+    // Listener per aprire il modale (se il bottone esiste)
+    if (openDonationModalBtn) {
+        openDonationModalBtn.addEventListener('click', function(e) {
+            e.preventDefault(); // Impedisce il default del link (es. scroll a #)
+            showDonationModal();
+        });
+    }
+
+    // Listener per chiudere il modale tramite il bottone 'X'
+    if (modalCloseBtn) {
+        modalCloseBtn.addEventListener('click', hideDonationModal);
+    }
+
+    // Listener per chiudere il modale cliccando all'esterno (sull'overlay)
+    if (donationModalOverlay) {
+        donationModalOverlay.addEventListener('click', function(e) {
+            // Se l'elemento cliccato è l'overlay stesso (non il contenuto del modale)
+            if (e.target === donationModalOverlay) {
+                hideDonationModal();
+            }
+        });
+    }
+
 
     async function updateUserStatusNavbar() {
         const userStatusElement = document.getElementById('user-status');
