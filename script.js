@@ -86,15 +86,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
- // In script.js, all'interno del listener DOMContentLoaded
-
-async function updateUserStatusNavbar() {
-    const userStatusElement = document.getElementById('user-status');
-    const loginLink = document.getElementById('nav-login');
-    const registerLink = document.getElementById('nav-register');
-    const logoutLink = document.getElementById('nav-logout');
-    const uploadNoteLink = document.getElementById('nav-upload');
-    const adminDashboardLink = document.getElementById('nav-admin'); // Ottieni il link della dashboard admin
+    async function updateUserStatusNavbar() {
+        const userStatusElement = document.getElementById('user-status');
+        const loginLink = document.getElementById('nav-login');
+        const registerLink = document.getElementById('nav-register');
+        const logoutLink = document.getElementById('nav-logout');
+        const uploadNoteLink = document.getElementById('nav-upload');
 
     // Nascondi tutti i link di stato utente per default
     if (userStatusElement) userStatusElement.style.display = 'none';
@@ -103,6 +100,11 @@ async function updateUserStatusNavbar() {
     if (logoutLink) logoutLink.style.display = 'none';
     if (uploadNoteLink) uploadNoteLink.style.display = 'none';
     if (adminDashboardLink) adminDashboardLink.style.display = 'none'; // Nascondi per default
+        if (userStatusElement) userStatusElement.style.display = 'none';
+        if (loginLink) loginLink.style.display = 'none';
+        if (registerLink) registerLink.style.display = 'none';
+        if (logoutLink) logoutLink.style.display = 'none';
+        if (uploadNoteLink) uploadNoteLink.style.display = 'none';
 
     try {
         const response = await fetch(`${API_BASE_URL}/api/status`);
@@ -130,6 +132,26 @@ async function updateUserStatusNavbar() {
         if (registerLink) registerLink.style.display = 'inline-block';
     }
 }
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/status`);
+            const data = await response.json();
+            if (data.logged_in) {
+                if (userStatusElement) {
+                    userStatusElement.textContent = `Benvenuto, ${data.user.username}!`;
+                    userStatusElement.style.display = 'inline-block';
+                }
+                if (logoutLink) logoutLink.style.display = 'inline-block';
+                if (uploadNoteLink) uploadNoteLink.style.display = 'inline-block';
+            } else {
+                if (loginLink) loginLink.style.display = 'inline-block';
+                if (registerLink) registerLink.style.display = 'inline-block';
+            }
+        } catch (error) {
+            console.error('Errore nel controllo stato login:', error);
+            if (loginLink) loginLink.style.display = 'inline-block';
+            if (registerLink) registerLink.style.display = 'inline-block';
+        }
+    }
 
     function loadNotesForCourse(courseId, containerElement) {
         containerElement.innerHTML = `<p style="color: black;">Caricamento appunti...</p>`;
@@ -542,7 +564,7 @@ notesListContainer.addEventListener('click', (event) => {
     
     activateMainTabAndHeader();
     updateUserStatusNavbar();
-    
+    logoutLink()
     if (document.getElementById('logoutLink')) {
         document.getElementById('logoutLink').addEventListener('click', async function(e) {
             e.preventDefault();

@@ -12,6 +12,7 @@ def initialize_database():
     
     with app.app_context():
         try:
+            db.drop_all(),
             db.create_all()
             print("INIT_DB: Struttura tabelle SQL verificata/creata.")
         except Exception as e:
