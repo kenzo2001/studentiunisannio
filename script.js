@@ -135,9 +135,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- LOGICA PAGINE DEI CORSI ---
 
+  
     function loadNotesForCourse(courseId, containerElement) {
         containerElement.innerHTML = `<p style="color: black;">Caricamento appunti...</p>`;
-        fetch(`${API_BASE_URL}/api/courses/${courseId}/notes`, { credentials: 'include' })
+        fetch(`${API_BASE_URL}/api/courses/${courseId}/notes`)
             .then(response => {
                 if (response.status === 404) return { message: "Nessun appunto trovato per questo corso." };
                 if (!response.ok) throw new Error(`Errore HTTP: ${response.status}`);
@@ -147,12 +148,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 let notesHtml = `<div class="course-notes-list">`;
                 if (Array.isArray(notesData) && notesData.length > 0) {
                     notesData.forEach(note => {
+                        const downloadApiUrl = `${API_BASE_URL}/api/notes/${note.id}/download`;
                         notesHtml += `
                             <div class="note-item">
                                 <h4>${note.title}</h4>
                                 <p>${note.description || 'Nessuna descrizione.'}</p>
                                 <p>Caricato da: ${note.uploader_name || 'Anonimo'} il ${new Date(note.upload_date).toLocaleDateString()}</p>
-                                <button class="download-note-btn" data-note-id="${note.id}">Scarica Appunto</button>
+                                <a href="${downloadApiUrl}" class="download-note-btn">Scarica Appunto</a>
                             </div>`;
                     });
                 } else {
@@ -160,8 +162,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 notesHtml += `</div>`;
                 containerElement.innerHTML = notesHtml;
+
                 containerElement.querySelectorAll('.download-note-btn').forEach(button => {
-                    button.addEventListener('click', () => handleNoteAction(button.dataset.noteId, 'download', false));
+                    button.addEventListener('click', function(event) {
+                        event.preventDefault();
+                        const apiUrl = this.href;
+                        fetch(apiUrl)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.download_url) {
+                                    window.open(data.download_url, '_blank');
+                                } else {
+                                    alert('Impossibile ottenere il link per il download.');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Errore recupero link download:', error);
+                                alert('Si è verificato un errore di rete.');
+                            });
+                    });
                 });
             })
             .catch(error => {
@@ -170,9 +189,82 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
+    function loadCoursesForYear(degreeProgramId, year, container, degreeName) {
+        const displayName = degreeName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        container.innerHTML = `<h3 style="color: black;">Caricamento corsi ${year}° Anno per ${displayName}...</h3>`;
+        
+        fetch(`${API_BASE_URL}/api/degree_programs/${degreeProgramId}/courses/${year}`)
+            .then(response => {
+                if (response.status === 404) return [];
+                if (!response.ok) throw new Error(`Errore dal server: ${response.status}`);
+                return response.json();
+            })
+            .then(coursesData => {
+                let listHtml = '';
+                if (Array.isArray(coursesData) && coursesData.length > 0) {
+                    coursesData.forEach(course => {
+                        listHtml += `
+                            <li id="course-${course.id}">
+                                <span>${course.name}</span>
+                                <a href="#" class="view-notes-btn" data-course-id="${course.id}">Vedi Appunti</a>
+                                <div class="notes-container" id="notes-for-course-${course.id}" style="display: none;"></div>
+                            </li>`;
+                    });
+                    container.innerHTML = `
+                        <h3>Corsi ${year}° Anno</h3>
+                        <div class="course-list">
+                            <ul>${listHtml}</ul>
+                        </div>`;
+                } else {
+                    container.innerHTML = `
+                        <h3>Corsi ${year}° Anno</h3>
+                        <p style="color: black; padding: 15px; text-align: left;">Nessun corso trovato per questo anno.</p>`;
+                }
+
+                container.querySelectorAll('.view-notes-btn').forEach(button => {
+                    button.addEventListener('click', function(event) {
+                        event.preventDefault();
+                        const courseId = this.dataset.courseId;
+                        const notesContainer = document.getElementById(`notes-for-course-${courseId}`);
+                        const isHidden = notesContainer.style.display === 'none';
+                        notesContainer.style.display = isHidden ? 'block' : 'none';
+                        this.textContent = isHidden ? 'Nascondi Appunti' : 'Vedi Appunti';
+                        if (isHidden) {
+                            loadNotesForCourse(courseId, notesContainer);
+                        }
+                    });
+                });
+            })
+            .catch(error => {
+                console.error('Errore caricamento corsi:', error);
+                container.innerHTML = `<h3 style="color: black;">Errore nel caricamento dei corsi.</h3><p>${error.message}</p>`;
+            });
+    }
+
     window.openYearTab = function(evt, tabName) {
-        // Logica per i tab degli anni (se necessaria, altrimenti può essere semplificata)
-    };
+        let i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("year-tabcontent");
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+            tabcontent[i].classList.remove("active");
+        }
+        tablinks = document.getElementsByClassName("year-tabs")[0].getElementsByTagName("button");
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].classList.remove("active");
+        }
+        const currentContentDiv = document.getElementById(tabName);
+        currentContentDiv.style.display = "block";
+        currentContentDiv.classList.add("active");
+        evt.currentTarget.classList.add("active");
+
+        const info = tabInfoMapping[tabName];
+        if (info) {
+            const degreeProgramId = degreeProgramIds[info.degree_name];
+            if (degreeProgramId) {
+                loadCoursesForYear(degreeProgramId, info.year, currentContentDiv, info.degree_name);
+            }
+        }
+    }
     
     // --- LOGICA DASHBOARD ADMIN ---
 
