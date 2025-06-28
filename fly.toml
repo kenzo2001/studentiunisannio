@@ -36,6 +36,6 @@ primary_region = 'fra'
 
 
   [[redirects]]
-from = "www.studentiunisannio.it"
+from = "https://www.studentiunisannio.it"
 to = "https://studentiunisannio.it"
 type = "permanent"
