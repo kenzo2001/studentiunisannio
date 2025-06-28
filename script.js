@@ -496,7 +496,6 @@ notesListContainer.addEventListener('click', (event) => {
         handleNoteAction(noteId, 'download');
     }
 });
-
     
     function onSignIn(googleUser) {
         const messageDiv = document.getElementById('login-message') || document.getElementById('register-message');
@@ -556,7 +555,6 @@ notesListContainer.addEventListener('click', (event) => {
     // Rendi la funzione di login con Google globalmente accessibile
     window.onSignIn = onSignIn;
 }
-
 
 
 
