@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>STUDENTI UNISANNIO - Scienze Naturali, Geologiche e Ambientali</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="/favicon.png" type="image/png">
+    <link rel="apple-touch-icon" href="/favicon.png"> <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
@@ -19,6 +21,7 @@
         <a id="nav-ding" href="ding.html">DING</a>
         <a id="nav-dst" href="dst.html">DST</a>
         <a id="nav-demm" href="demm.html">DEMM</a>
+        <a id="nav-admin" href="admin_dashboard.html">Dashboard Admin</a>
         <div id="navbar-user-area">
             <span id="user-status"></span>
             <a id="nav-register" href="register.html">Registrati</a>
@@ -32,17 +35,16 @@
         <h2>Corsi di Scienze Naturali, Geologiche e Ambientali</h2>
         <p>Scegli l'anno di studio per visualizzare i corsi disponibili.</p>
 
-        <div class="year-tabs-container">
-            <div class="year-tabs">
-                <button onclick="openYearTab(event, 'primoAnnoNaturali')">1° Anno</button>
-                <button onclick="openYearTab(event, 'secondoAnnoNaturali')">2° Anno</button>
-                <button onclick="openYearTab(event, 'terzoAnnoNaturali')">3° Anno</button>
-            </div>
-        </div>
-
-        <div id="primoAnnoNaturali" class="year-tabcontent"></div>
-        <div id="secondoAnnoNaturali" class="year-tabcontent"></div>
-        <div id="terzoAnnoNaturali" class="year-tabcontent"></div>
+      <div class="year-tabs-container">
+    <div class="year-tabs">
+        <button onclick="openYearTab(event, 'primoAnnoNaturali')">1° Anno</button>
+        <button onclick="openYearTab(event, 'secondoAnnoNaturali')">2° Anno</button>
+        <button onclick="openYearTab(event, 'terzoAnnoNaturali')">3° Anno</button>
+    </div>
+</div>
+<div id="primoAnnoNaturali" class="year-tabcontent"></div>
+<div id="secondoAnnoNaturali" class="year-tabcontent"></div>
+<div id="terzoAnnoNaturali" class="year-tabcontent"></div>
     </main>
 
     <footer>

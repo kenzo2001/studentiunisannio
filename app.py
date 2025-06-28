@@ -6,6 +6,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from flask_cors import CORS
+from functools import wraps 
 import boto3
 from botocore.exceptions import NoCredentialsError, ClientError
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
@@ -13,25 +14,31 @@ from flask_pymongo import PyMongo
 from bson.objectid import ObjectId
 from google.oauth2 import id_token
 from google.auth.transport import requests
-# Inizio del file app.py
-from dotenv import load_dotenv # Aggiungi questa linea
+from dotenv import load_dotenv
+from functools import wraps # AGGIUNGI QUESTA RIGA PER IMPORTARE wraps
 
-load_dotenv() # Aggiungi questa linea
+# Carica le variabili d'ambiente una sola volta
+load_dotenv()
 
-from flask import Flask, jsonify, request, send_from_directory, redirect, url_for, session, current_app
 print("DEBUG: Avvio app.py")
 
 app = Flask(__name__, static_folder='.', static_url_path='/')
 
-# --- CONFIGURAZIONE ---
-# Chiave Segreta e Dominio Cookie
+# --- CONFIGURAZIONE CORS ---
+# Permette al frontend su "www" di comunicare con il backend sul dominio root.
+CORS(app, resources={
+    r"/api/*": {
+        "origins": ["https://studentiunisannio.it", "https://www.studentiunisannio.it"],
+        "supports_credentials": True
+    }
+})
+
+# --- CONFIGURAZIONE GENERALE ---
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'fallback-secret-key-per-sviluppo-locale')
 app.config['SESSION_COOKIE_DOMAIN'] = '.studentiunisannio.it'
-
-# NUOVA RIGA DA AGGIUNGERE
 app.config['ALLOWED_EMAIL_DOMAINS'] = ['unisannio.it', 'studenti.unisannio.it']
 
-# Database SQL (PostgreSQL)
+# --- CONFIGURAZIONE DATABASE SQL (POSTGRESQL/SQLITE) ---
 db_url = os.environ.get('DATABASE_URL')
 if db_url:
     app.config['SQLALCHEMY_DATABASE_URI'] = db_url.replace('postgres://', 'postgresql+psycopg2://')
@@ -40,19 +47,14 @@ else:
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# Database NoSQL (MongoDB) per gli utenti
+# --- CONFIGURAZIONE DATABASE NOSQL (MONGODB) ---
 mongo_uri_from_env = os.environ.get("MONGO_URI")
 if not mongo_uri_from_env:
-    raise ValueError("ERRORE CRITICO: La variabile d'ambiente MONGO_URI non è stata trovata. "
-                     "Assicurati che il file .env esista nella cartella principale e sia nominato correttamente.")
-
-print(f"DEBUG: La MONGO_URI letta dall'ambiente è: {mongo_uri_from_env}")
-
+    raise ValueError("ERRORE CRITICO: La variabile d'ambiente MONGO_URI non è stata trovata.")
 app.config["MONGO_URI"] = mongo_uri_from_env
-mongo = PyMongo() # 1. Crea un'istanza vuota di PyMongo
-mongo.init_app(app) # 2. Inizializzala con l'applicazione
+mongo = PyMongo(app)
 
-# AWS S3
+# --- CONFIGURAZIONE AWS S3 ---
 S3_BUCKET = os.environ.get("S3_BUCKET_NAME")
 S3_KEY = os.environ.get("AWS_ACCESS_KEY_ID")
 S3_SECRET = os.environ.get("AWS_SECRET_ACCESS_KEY")
@@ -66,23 +68,22 @@ if S3_KEY and S3_SECRET and S3_REGION and S3_BUCKET:
 else:
     print("ERRORE DEBUG: Variabili d'ambiente AWS S3 non impostate.")
 
-# Flask-Login
+# --- CONFIGURAZIONE FLASK-LOGIN ---
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-# --- MODELLI ---
+# --- MODELLI DATABASE ---
 
-# Modello Utente per MongoDB (da Modello A)
 class User(UserMixin):
     def __init__(self, user_data):
         self.id = str(user_data.get('_id'))
         self.username = user_data.get('username')
         self.email = user_data.get('email')
         self.password_hash = user_data.get('password_hash')
+        self.role = user_data.get('role', 'user') # Nuovo campo: ruolo utente, default 'user'
     def to_dict(self):
-        return {"id": self.id, "username": self.username, "email": self.email}
+        return {"id": self.id, "username": self.username, "email": self.email, "role": self.role} # Includi il ruolo
 
-# Modelli Dati per SQL (da Modello B)
 class Department(db.Model):
     __tablename__ = 'departments'
     id = db.Column(db.Integer, primary_key=True)
@@ -116,9 +117,10 @@ class Note(db.Model):
     upload_date = db.Column(db.DateTime, default=datetime.utcnow)
     course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
     uploader_name = db.Column(db.String(80), nullable=True)
-    def to_dict(self): return {"id": self.id, "title": self.title, "description": self.description, "s3_key": self.s3_key, "upload_date": self.upload_date.isoformat(), "course_id": self.course_id, "uploader_name": self.uploader_name}
+    status = db.Column(db.String(20), default='pending', nullable=False) # Nuovo campo: stato dell'appunto
+    def to_dict(self): return {"id": self.id, "title": self.title, "description": self.description, "s3_key": self.s3_key, "upload_date": self.upload_date.isoformat(), "course_id": self.course_id, "uploader_name": self.uploader_name, "status": self.status} # Includi lo stato
 
-# --- GESTIONE SESSIONE UTENTE (da Modello A) ---
+# --- GESTIONE SESSIONE UTENTE ---
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -131,7 +133,16 @@ def unauthorized():
         return jsonify({"error": "Accesso non autorizzato. Effettua il login."}), 401
     return redirect(url_for('serve_login_page'))
 
+# --- Aggiunta dell'header Cross-Origin-Opener-Policy ---
+@app.after_request
+def add_coop_header(response):
+    # Imposta l'header COOP per consentire l'interazione con i popup cross-origin (come Google Sign-In)
+    # Questo header è importante per risolvere gli errori 'Cross-Origin-Opener-Policy policy would block...'
+    response.headers['Cross-Origin-Opener-Policy'] = 'same-origin-allow-popups'
+    return response
+
 # --- ROTTE API ---
+
 @app.route('/api/google-login', methods=['POST'])
 def google_login():
     try:
@@ -140,82 +151,31 @@ def google_login():
         if not token:
             return jsonify({"error": "Token mancante"}), 400
 
-        # Verifica il token con Google
         idinfo = id_token.verify_oauth2_token(token, requests.Request(), os.environ.get('GOOGLE_CLIENT_ID'))
-
-        # Ottieni le informazioni dell'utente dal token
         user_email = idinfo['email']
         
-        # --- NUOVO BLOCCO DI CONTROLLO DOMINIO ---
         domain = user_email.split('@')[-1]
         if domain not in current_app.config['ALLOWED_EMAIL_DOMAINS']:
-            return jsonify({
-                "error": "Accesso consentito solo con email istituzionali (@unisannio.it o @studenti.unisannio.it)."
-            }), 403 # 403 Forbidden
-        # --- FINE BLOCCO DI CONTROLLO ---
+            return jsonify({"error": "Accesso consentito solo con email istituzionali."}), 403
 
-        user_name = idinfo.get('name', user_email.split('@')[0]) # Usa il nome o la parte locale dell'email
-
-        # Controlla se l'utente esiste, altrimenti creane uno nuovo (funzione di registrazione)
+        user_name = idinfo.get('name', user_email.split('@')[0])
         user_data = mongo.db.users.find_one({"email": user_email})
+        
         if not user_data:
-            print(f"INIT_DB: Creazione nuovo utente da Google: {user_email}")
-            # Crea un nuovo utente con una password casuale poiché non verrà utilizzata
             hashed_password = generate_password_hash(os.urandom(24).hex())
-            new_user_data = {
-                "username": user_name,
-                "email": user_email,
-                "password_hash": hashed_password,
-                "source": "google" # Opzionale: per tracciare la provenienza dell'utente
-            }
+            # Nuovo utente: default 'user'
+            new_user_data = {"username": user_name, "email": user_email, "password_hash": hashed_password, "source": "google", "role": "user"}
             mongo.db.users.insert_one(new_user_data)
             user_data = mongo.db.users.find_one({"email": user_email})
 
         user = User(user_data)
         login_user(user)
         return jsonify({"message": "Login/Registrazione avvenuta con successo"}), 200
-
     except ValueError:
-        # Token non valido
         return jsonify({"error": "Token Google non valido o scaduto."}), 401
     except Exception as e:
-        print(f"ERRORE GOOGLE LOGIN: {e}")
-        return jsonify({"error": "Si è verificato un errore interno."}), 500
+        return jsonify({"error": f"Errore interno: {e}"}), 500
 
-
-    try:
-        data = request.get_json()
-        token = data['token']
-
-        # Verifica il token con Google
-        idinfo = id_token.verify_oauth2_token(token, requests.Request(), os.environ.get('GOOGLE_CLIENT_ID'))
-
-        # Ottieni le informazioni dell'utente dal token
-        user_email = idinfo['email']
-        user_name = idinfo.get('name', '')
-
-        # Controlla se l'utente esiste, altrimenti creane uno nuovo
-        user_data = mongo.db.users.find_one({"email": user_email})
-        if not user_data:
-            # Crea un nuovo utente con una password casuale poiché non verrà utilizzata
-            hashed_password = generate_password_hash(os.urandom(24))
-            user_data = {
-                "username": user_name,
-                "email": user_email,
-                "password_hash": hashed_password
-            }
-            mongo.db.users.insert_one(user_data)
-            user_data = mongo.db.users.find_one({"email": user_email})
-
-        user = User(user_data)
-        login_user(user)
-        return jsonify({"message": "Login successful"}), 200
-
-    except ValueError:
-        # Token non valido
-        return "Token non valido", 401
-
-# API Utenti che usano MongoDB (da Modello A)
 @app.route('/api/register', methods=['POST'])
 def register():
     data = request.get_json()
@@ -226,41 +186,15 @@ def register():
     if not all([username, email, password]):
         return jsonify({"error": "Dati mancanti"}), 400
 
-    # --- NUOVO BLOCCO DI CONTROLLO DOMINIO ---
     domain = email.split('@')[-1]
-    if domain not in current_app.config.get('ALLOWED_EMAIL_DOMAINS', []):
-        return jsonify({
-            "error": "Registrazione permessa solo con email istituzionali (@unisannio.it o @studenti.unisannio.it)."
-        }), 403 # 403 Forbidden
-    # --- FINE BLOCCO DI CONTROLLO ---
+    if domain not in current_app.config['ALLOWED_EMAIL_DOMAINS']:
+        return jsonify({"error": "Registrazione consentita solo con email istituzionali."}), 403
 
-    if mongo.db.users.find_one({"username": username}):
-        return jsonify({"error": "Username già in uso"}), 409
-    if mongo.db.users.find_one({"email": email}):
-        return jsonify({"error": "Email già in uso"}), 409
+    if mongo.db.users.find_one({"username": username}) or mongo.db.users.find_one({"email": email}):
+        return jsonify({"error": "Username o email già in uso"}), 409
 
-    mongo.db.users.insert_one({
-        "username": username,
-        "email": email,
-        "password_hash": generate_password_hash(password),
-        "source": "manual" # Opzionale: per tracciare la provenienza
-    })
-    return jsonify({"message": "Registrazione avvenuta con successo!"}), 201
-    data = request.get_json()
-    username = data.get('username')
-    email = data.get('email')
-    password = data.get('password')
-    if not all([username, email, password]):
-        return jsonify({"error": "Dati mancanti"}), 400
-    if mongo.db.users.find_one({"username": username}):
-        return jsonify({"error": "Username già in uso"}), 409
-    if mongo.db.users.find_one({"email": email}):
-        return jsonify({"error": "Email già in uso"}), 409
-    mongo.db.users.insert_one({
-        "username": username,
-        "email": email,
-        "password_hash": generate_password_hash(password)
-    })
+    # Nuovo utente: default 'user'
+    mongo.db.users.insert_one({"username": username, "email": email, "password_hash": generate_password_hash(password), "source": "manual", "role": "user"})
     return jsonify({"message": "Registrazione avvenuta con successo!"}), 201
 
 @app.route('/api/login', methods=['POST'])
@@ -288,7 +222,6 @@ def get_status():
     else:
         return jsonify({"logged_in": False}), 200
 
-# API Dati che usano SQL (prese e adattate da Modello B)
 @app.route('/api/departments', methods=['GET'])
 def get_departments():
     departments = Department.query.order_by(Department.name).all()
@@ -306,7 +239,11 @@ def get_courses_by_year(degree_program_id, year):
 
 @app.route('/api/courses/<int:course_id>/notes', methods=['GET'])
 def get_notes_for_course(course_id):
-    notes = Note.query.filter_by(course_id=course_id).order_by(Note.upload_date.desc()).all()
+    # Modificato: recupera solo gli appunti con stato 'approved' per gli utenti normali
+    # Gli admin potranno vedere anche gli appunti 'pending' tramite un altro endpoint futuro
+    notes = Note.query.filter_by(course_id=course_id, status='approved').order_by(Note.upload_date.desc()).all()
+    if not notes:
+        return jsonify({"message": "Nessun appunto trovato per questo corso."}), 404
     return jsonify([n.to_dict() for n in notes])
 
 @app.route('/api/upload_note', methods=['POST'])
@@ -336,28 +273,109 @@ def upload_note():
             unique_s3_key = f"notes/{uuid.uuid4().hex}-{original_filename}"
             s3_client.upload_fileobj(file, S3_BUCKET, unique_s3_key)
 
-            new_note = Note(title=title, description=description, s3_key=unique_s3_key, course_id=course_id, uploader_name=uploader_name)
+            # Nuovo appunto: stato iniziale 'pending'
+            new_note = Note(title=title, description=description, s3_key=unique_s3_key, course_id=course_id, uploader_name=uploader_name, status='pending')
             db.session.add(new_note)
             db.session.commit()
-            return jsonify({"message": "Appunto caricato con successo!"}), 201
+            return jsonify({"message": "Appunto caricato con successo! In attesa di approvazione."}), 201
         except Exception as e:
-            print(f"ERRORE UPLOAD: {e}")
             db.session.rollback()
-            return jsonify({"error": "Errore interno durante il salvataggio dell'appunto."}), 500
+            return jsonify({"error": f"Errore interno durante il salvataggio: {e}"}), 500
     return jsonify({"error": "Servizio di upload non configurato."}), 500
 
 @app.route('/api/notes/<int:note_id>/download', methods=['GET'])
 @login_required
 def download_note(note_id):
     note = Note.query.get_or_404(note_id)
+    # Gli utenti possono scaricare solo appunti approvati
+    if note.status != 'approved' and current_user.role != 'admin': # Aggiunto controllo ruolo
+        return jsonify({"error": "Accesso negato: Appunto non approvato."}), 403
+
     if not s3_client:
         return jsonify({"error": "Servizio di download non configurato."}), 500
     try:
         presigned_url = s3_client.generate_presigned_url('get_object', Params={'Bucket': S3_BUCKET, 'Key': note.s3_key}, ExpiresIn=300)
         return jsonify({"download_url": presigned_url})
     except Exception as e:
-        print(f"ERRORE DOWNLOAD: {e}")
         return jsonify({"error": "Impossibile generare il link per il download."}), 500
+
+
+# --- NUOVI ENDPOINT PER ADMIN ---
+
+# Decoratore per richiedere il ruolo di amministratore
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role != 'admin':
+            return jsonify({"error": "Accesso negato: Richiede ruolo di amministratore."}), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Endpoint per visualizzare appunti in attesa di approvazione
+# NUOVO ENDPOINT: Ottiene TUTTI gli appunti per la gestione amministrativa
+@app.route('/api/admin/all_notes', methods=['GET'])
+@login_required
+@admin_required
+def get_all_notes_for_admin():
+    # Recupera tutti gli appunti, indipendentemente dallo stato
+    all_notes = Note.query.order_by(Note.upload_date.desc()).all()
+    if not all_notes:
+        return jsonify({"message": "Nessun appunto trovato nel sistema."}), 404
+    return jsonify([n.to_dict() for n in all_notes])
+
+# Puoi mantenere get_pending_notes se desideri una sezione separata per solo quelli in attesa,
+# ma per la funzionalità richiesta, get_all_notes_for_admin è sufficiente.
+# Se vuoi rimuovere get_pending_notes e usare solo get_all_notes_for_admin,
+# allora devi aggiornare il frontend per chiamare /api/admin/all_notes.
+# Per ora, suggerisco di aggiungere questo e modificare il frontend per usarlo.
+# Endpoint per approvare un appunto
+@app.route('/api/admin/notes/<int:note_id>/approve', methods=['POST'])
+@login_required
+@admin_required
+def approve_note(note_id):
+    note = Note.query.get_or_404(note_id)
+    if note.status == 'approved':
+        return jsonify({"message": "Appunto già approvato."}), 200
+    note.status = 'approved'
+    db.session.commit()
+    return jsonify({"message": "Appunto approvato con successo!"}), 200
+
+# Endpoint per rifiutare un appunto (o marcarlo come non attivo)
+@app.route('/api/admin/notes/<int:note_id>/reject', methods=['POST'])
+@login_required
+@admin_required
+def reject_note(note_id):
+    note = Note.query.get_or_404(note_id)
+    if note.status == 'rejected':
+        return jsonify({"message": "Appunto già rifiutato."}), 200
+    note.status = 'rejected'
+    db.session.commit()
+    return jsonify({"message": "Appunto rifiutato con successo!"}), 200
+
+# Endpoint per eliminare un appunto
+@app.route('/api/admin/notes/<int:note_id>/delete', methods=['DELETE'])
+@login_required
+@admin_required
+def delete_note(note_id):
+    note = Note.query.get_or_404(note_id)
+    s3_key = note.s3_key
+
+    try:
+        # Elimina il file da S3
+        if s3_client:
+            s3_client.delete_object(Bucket=S3_BUCKET, Key=s3_key)
+            print(f"DEBUG: File {s3_key} eliminato da S3.")
+        
+        # Elimina la voce dal database
+        db.session.delete(note)
+        db.session.commit()
+        return jsonify({"message": "Appunto eliminato con successo!"}), 200
+    except ClientError as e:
+        db.session.rollback()
+        return jsonify({"error": f"Errore S3 durante l'eliminazione: {e}"}), 500
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Errore durante l'eliminazione dell'appunto: {e}"}), 500
 
 
 # --- ROTTE PER SERVIRE FILE STATICI ---
@@ -369,6 +387,17 @@ def serve_home():
 def serve_login_page():
     return send_from_directory('.', 'login.html')
 
+
+@app.route('/admin_dashboard.html') # NUOVA ROTTA
+def serve_admin_dashboard_page():
+    return send_from_directory('.', 'admin_dashboard.html')
+
+
 @app.route('/<path:filename>')
 def serve_static_files(filename):
+    if filename in ['.env', 'fly.toml', 'requirements.txt', 'password.txt']:
+        return "Accesso negato", 403
     return send_from_directory('.', filename)
+
+if __name__ == '__main__':
+    app.run(debug=True)
