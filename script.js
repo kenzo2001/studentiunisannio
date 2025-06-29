@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const currentPage = window.location.pathname.split('/').pop();
 
     const isLocal = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
-const API_BASE_URL = isLocal ? 'http://127.0.0.1:5000' : window.location.origin;
+    const API_BASE_URL = isLocal ? 'http://127.0.0.1:5000' : window.location.origin;
 
     const degreeProgramIds = {
         'ing_energetica': 1, 'ing_civile': 2, 'ing_informatica': 3, 'ing_biomedica': 4,
@@ -86,7 +86,7 @@ const API_BASE_URL = isLocal ? 'http://127.0.0.1:5000' : window.location.origin;
         const registerLink = document.getElementById('nav-register');
         const logoutLink = document.getElementById('nav-logout');
         const uploadNoteLink = document.getElementById('nav-upload');
-        const adminDashboardLink = document.getElementById('nav-admin'); // Dichiarazione corretta
+        const adminDashboardLink = document.getElementById('nav-admin');
 
         // Nascondi tutti i link di stato utente per default
         if (userStatusElement) userStatusElement.style.display = 'none';
@@ -94,7 +94,7 @@ const API_BASE_URL = isLocal ? 'http://127.0.0.1:5000' : window.location.origin;
         if (registerLink) registerLink.style.display = 'none';
         if (logoutLink) logoutLink.style.display = 'none';
         if (uploadNoteLink) uploadNoteLink.style.display = 'none';
-        if (adminDashboardLink) adminDashboardLink.style.display = 'none'; // Nascondi per default
+        if (adminDashboardLink) adminDashboardLink.style.display = 'none';
 
         try {
             const response = await fetch(`${API_BASE_URL}/api/status`);
@@ -122,75 +122,24 @@ const API_BASE_URL = isLocal ? 'http://127.0.0.1:5000' : window.location.origin;
             if (registerLink) registerLink.style.display = 'inline-block';
         }
     }
-    document.addEventListener('DOMContentLoaded', function() {
-    // ... tutto il tuo codice esistente ...
 
-    // --- Funzioni per il Pop-up Donazioni ---
-    const donationModalOverlay = document.getElementById('donation-modal-overlay');
-    const modalCloseBtn = document.getElementById('modal-close-btn');
-    const openDonationModalBtn = document.getElementById('openDonationModal'); // L'ID del bottone che hai aggiunto
+    const logoutBtn = document.getElementById('nav-logout');
 
-    // Funzione per mostrare il modale
-    function showDonationModal() {
-        if (donationModalOverlay) {
-            donationModalOverlay.style.display = 'flex'; // o 'block', a seconda del tuo CSS
-        }
-    }
-
-    // Funzione per nascondere il modale
-    function hideDonationModal() {
-        if (donationModalOverlay) {
-            donationModalOverlay.style.display = 'none';
-        }
-    }
-
-    // Listener per aprire il modale (se il bottone esiste)
-    if (openDonationModalBtn) {
-        openDonationModalBtn.addEventListener('click', function(e) {
-            e.preventDefault(); // Impedisce il default del link (es. scroll a #)
-            showDonationModal();
-        });
-    }
-
-    // Listener per chiudere il modale tramite il bottone 'X'
-    if (modalCloseBtn) {
-        modalCloseBtn.addEventListener('click', hideDonationModal);
-    }
-
-    // Listener per chiudere il modale cliccando all'esterno (sull'overlay)
-    if (donationModalOverlay) {
-        donationModalOverlay.addEventListener('click', function(e) {
-            // Se l'elemento cliccato è l'overlay stesso (non il contenuto del modale)
-            if (e.target === donationModalOverlay) {
-                hideDonationModal();
-            }
-        });
-    }
-
-    // ... il resto del tuo codice esistente ...
-});
-
-    const logoutBtn = document.getElementById('nav-logout'); // Modificato da 'logoutLink' a 'nav-logout'
-
-    if (logoutBtn) { // Controlla se l'elemento esiste
+    if (logoutBtn) {
         logoutBtn.addEventListener('click', async function(e) {
-            e.preventDefault(); // Previene il comportamento predefinito del link
+            e.preventDefault();
 
             try {
-                // Invia la richiesta POST all'endpoint di logout
                 const response = await fetch(`${API_BASE_URL}/api/logout`, { method: 'POST', credentials: 'include' });
 
                 if (response.ok) {
-                    // Reindirizza alla pagina di login solo dopo il successo
                     window.location.href = 'login.html';
                 } else {
-                    // Gestisci eventuali errori dal server
                     const errorData = await response.json();
                     alert(`Errore durante il logout: ${errorData.error || 'Qualcosa è andato storto.'}`);
                     console.error('Errore logout API:', errorData);
                 }
             } catch (error) {
-                // Gestisci errori di rete
                 alert('Errore di rete durante il logout. Riprova.');
                 console.error('Errore fetch logout:', error);
             }
@@ -607,6 +556,56 @@ const API_BASE_URL = isLocal ? 'http://127.0.0.1:5000' : window.location.origin;
             console.error('Errore durante il login con Google:', error);
         });
     }
+
+    // --- CODICE PER IL POP-UP DONAZIONI ---
+    const donationModalOverlay = document.getElementById('donation-modal-overlay');
+    const modalCloseBtn = document.getElementById('modal-close-btn');
+    let hasDonationModalBeenShown = false; // Flag per assicurarsi che si mostri solo una volta
+
+    function showDonationModal() {
+        if (donationModalOverlay && !hasDonationModalBeenShown) {
+            donationModalOverlay.style.display = 'flex';
+            hasDonationModalBeenShown = true;
+            // Opzionale: rimuovi i listener dopo la prima visualizzazione per evitare chiamate multiple
+            window.removeEventListener('scroll', handleScrollForDonationModal);
+            clearTimeout(timeoutId); // Rimuovi il timer se il modale è stato mostrato dallo scroll
+        }
+    }
+
+    function hideDonationModal() {
+        if (donationModalOverlay) {
+            donationModalOverlay.style.display = 'none';
+        }
+    }
+
+    // Listener per chiudere il modale tramite il bottone 'X'
+    if (modalCloseBtn) {
+        modalCloseBtn.addEventListener('click', hideDonationModal);
+    }
+
+    // Listener per chiudere il modale cliccando all'esterno (sull'overlay)
+    if (donationModalOverlay) {
+        donationModalOverlay.addEventListener('click', function(e) {
+            if (e.target === donationModalOverlay) {
+                hideDonationModal();
+            }
+        });
+    }
+
+    // Funzione per gestire lo scroll, chiamata dal listener di scroll
+    const handleScrollForDonationModal = function() {
+        const scrollPercentage = (window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
+        if (scrollPercentage > 30 && !hasDonationModalBeenShown) { // Mostra quando l'utente scorre il 30% della pagina
+            showDonationModal();
+        }
+    };
+
+    // Imposta un timer per mostrare il modale dopo 5 secondi
+    const timeoutId = setTimeout(showDonationModal, 5000); // Mostra dopo 5 secondi
+
+    // Aggiungi un listener per lo scroll
+    window.addEventListener('scroll', handleScrollForDonationModal);
+
 
     // --- ESECUZIONE ALL'AVVIO ---
     activateMainTabAndHeader();
