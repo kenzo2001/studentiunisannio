@@ -50,9 +50,11 @@ document.addEventListener('DOMContentLoaded', function() {
         let theme = '';
         let activeNavLinkId = '';
 
-        if (currentPage === '' || currentPage === 'index.html' || currentPage === 'upload_note.html') {
+        // Includi login.html e register.html nel tema 'home'
+        if (currentPage === '' || currentPage === 'index.html' || currentPage === 'upload_note.html' || currentPage === 'login.html' || currentPage === 'register.html') {
             theme = 'home';
-            activeNavLinkId = 'nav-home';
+            // Per login/register, non c'è un link attivo nella navbar principale, quindi non impostiamo nav-home
+            activeNavLinkId = (currentPage === 'index.html') ? 'nav-home' : '';
         } else if (isIngPage || currentPage === 'ding.html') {
             theme = 'ding';
             activeNavLinkId = 'nav-ding';
@@ -63,9 +65,10 @@ document.addEventListener('DOMContentLoaded', function() {
             theme = 'demm';
             activeNavLinkId = 'nav-demm';
         } else {
-            // Fallback per altre pagine come login/register
-            theme = 'ding';
-            activeNavLinkId = 'nav-ding';
+            // Se ci sono altre pagine non mappate, puoi decidere un fallback specifico
+            // Per ora, manteniamo 'home' per sicurezza, ma idealmente tutte le pagine dovrebbero essere mappate.
+            theme = 'home';
+            activeNavLinkId = '';
         }
 
         // Applica il tema
